@@ -73,12 +73,13 @@ Note: `_process` in a GDExtension node also runs inside the editor. Guard simula
 | Every file fails instantly, empty `=====` blocks in SCons output | PATH problem, redo step 1 |
 | SCons looks for MSVC / cl.exe | Forgot `use_mingw=yes` |
 | `Permission denied` writing the DLL | Godot has it open. Close Godot, rebuild |
-| Extension not loading, `Can't open dynamic library` | DLL name doesn't match the paths in `project/bin/example.gdextension`. Currently the library is still named `EXTENSION-NAME`, so the DLL should be `project/bin/windows/EXTENSION-NAME.windows.template_debug.x86_64.dll` |
+| Extension not loading, `Can't open dynamic library` | DLL name doesn't match the paths in `project/bin/phonon2d.gdextension`. The DLL should be `project/bin/windows/Phonon2D.windows.template_debug.x86_64.dll`, matching `project/bin/phonon2d.gdextension` |
 | `godot-cpp is not available` | Run `git submodule update --init --recursive` |
 | Class missing after editing code | Forgot `GDREGISTER_CLASS` in `register_types.cpp`, or did not rebuild/reload |
 
-## Not done yet
+## Notes
 
-- Rename `EXTENSION-NAME` / `example_library_init` to `phonon2d` names (`SConstruct`, `CMakeLists.txt`, `project/bin/example.gdextension`, `src/register_types.cpp`). Works as-is until then.
-- Remove `ExampleClass` and its files.
-- Note: `SConstruct` passes `api_version: 4.3` while the project is on Godot 4.7. It built fine in the sandbox, so leave it unless something breaks.
+- Library name is `Phonon2D`, entry symbol `phonon2d_library_init`, extension file `project/bin/phonon2d.gdextension`.
+- `SConstruct` passes `api_version: 4.3` while the project is on Godot 4.7. It builds fine, so leave it unless something breaks.
+- Compiled output (`.dll`, `.a`, `.o`) is gitignored. Never commit it.
+- If a build is interrupted during "Linking Static Library", delete the stray temp file in `godot-cpp/bin/` (random 8-char name, 0 bytes) and rerun.
