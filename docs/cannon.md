@@ -10,8 +10,9 @@ Living record of the project for future AI sessions (and Mikey). If this file di
 
 ## Related docs (all in `docs/`)
 
-- `current-context.md`: onboarding brief carried over from the GDExtension sandbox (who Mikey is, design of the library, deliverable dates, setup problems already solved). Partly historical; sandbox framing is outdated.
+- `current-context.md`: background brief (who Mikey is, full library design, deliverables, setup problems already solved, sandbox history). Read for depth; this canon wins on anything current.
 - `running.md`: how to compile and run the project.
+- `gdextension-guide.md`: GDExtension cheat sheet for Mikey (class anatomy, registration, binding, callbacks, memory, singletons, gotchas).
 - `gd-extension-context.md`: stock godot-cpp-template README, reference only.
 
 ## Project summary
@@ -31,10 +32,19 @@ Mikey calls the Claude that works on Phonon2D **Echo**. It helps him keep this p
 - Casual, short, plain writing. No em dashes, no filler.
 - One step at a time; say what a command does before asking him to run it.
 - Honest pushback on overengineering or things that won't survive a viva.
+- Phonon2D code is assessed: explain and guide, build it with Mikey step by step rather than dumping large chunks. Tooling/setup can be done directly.
+- Mikey uses GitHub Desktop for commits and PRs. Don't commit or push unless asked.
+- Ask before starting long-running commands (a full godot-cpp rebuild is ~25 min).
+
+## Git workflow
+
+- `main` is the stable branch. One branch per milestone off `main` (e.g. `phonon-emitter`), merged by PR.
+- CI (`.github/workflows/ci.yml`, from the template) builds on Linux, Windows, macOS, Android and Web on every push and PR. Build-only, no tests. Check the Actions tab after pushing; merge only when green. `make_build.yml` is a manual all-platform release build.
+- Never edit or commit inside `godot-cpp/`. Exclude it from repo-wide find/replace.
 
 ## Environment
 
-- Windows 11, PowerShell. Repo: `C:\MyStuff\Projects\Phonon2D`, branch `GDExtension-Setup` (main is `main`).
+- Windows 11, PowerShell. Repo: `C:\MyStuff\Projects\Phonon2D`, default branch `main`.
 - Godot 4.7 standard. MinGW-w64 g++ 16.2.0 (MSYS2 UCRT64, `C:\msys64\ucrt64\bin`, must be first on PATH). Python 3.12.10, SCons 4.11.1. No MSVC.
 - Build: `scons use_mingw=yes` (see `running.md`).
 - godot-cpp is a git submodule (branch 4.3); `SConstruct` passes `api_version: 4.3`.
@@ -43,12 +53,24 @@ Mikey calls the Claude that works on Phonon2D **Echo**. It helps him keep this p
 
 _Last updated: 2026-10-28_
 
-- Repo contains the template scaffolding copied from the sandbox: `src/` (register_types, ExampleClass, PinkCircle), `project/` test project, `doc_classes/`, build config.
-- `PinkCircle` (Node2D, exported `radius`, pulsing draw) is the only custom node. Verified 2026-10-28: `scons use_mingw=yes` builds in this repo and PinkCircle works in Godot.
-- Library renamed: `Phonon2D` (SConstruct, CMakeLists), entry symbol `phonon2d_library_init`, `project/bin/phonon2d.gdextension`. `ExampleClass` and its files removed. `project.godot` named Phonon2D with `pink_circle.tscn` as main scene. `doc_classes/` kept empty (`.gitkeep`).
+**Setup complete, ready for development.** Setup PR from `GDExtension-Setup` into `main` opened 2026-10-28 (CI running at time of writing).
+
+- Layout: `src/` (register_types, PinkCircle), `project/` Godot test project, `doc_classes/` (empty, `.gitkeep`), `docs/`, build config (SConstruct, CMakeLists, methods.py), `.github/workflows/`.
+- Library `Phonon2D`, entry symbol `phonon2d_library_init`, extension file `project/bin/phonon2d.gdextension`. Built DLL: `project/bin/windows/Phonon2D.windows.template_debug.x86_64.dll`.
+- `PinkCircle` (Node2D, exported `radius`, pulsing draw) is the only custom node: a placeholder from the sandbox proving registration, properties, `_process` and `_draw` work. Remove or replace once real nodes exist. `pink_circle.tscn` is the main scene.
+- Build and PinkCircle verified in Godot 4.7. Incremental build ~16s.
 - Build output (dll, a, o) is gitignored and untracked.
-- No Phonon2D classes written yet.
-- Initial project setup is being committed by Mikey (2026-10-28) as the baseline before cleanup.
+- Class skeletons exist (empty, compile, registered) on `development`, layout below. Attributes/methods not added yet.
+
+```
+src/
+  register_types.*            registration
+  pink_circle.*               setup placeholder, delete later
+  server/   phonon_server (Object, singleton later), phonon_packet (plain struct), phonon_packet_factory (plain C++, owned by server)
+  nodes/    phonon_emitter_2d (AudioStreamPlayer2D), phonon_receiver (abstract Node2D), phonon_listener_2d, phonon_sensor_2d
+  resources/ phonon_material (Resource, MaterialType enum inside the class)
+```
+- SConstruct globs `src/*.cpp` + `src/*/*.cpp` (excluding generated `src/gen/`). CMakeLists lists files explicitly: add new files there too.
 
 ## Decisions
 
@@ -56,6 +78,14 @@ _Last updated: 2026-10-28_
 - PhononPacket stores direction, not velocity (speed is a medium property); wavelength derivable so not stored.
 - Packets are pooled and recycled below a cull threshold.
 - Listener and sensor share a `PhononReceiver` abstraction so the server dispatches to one list.
+- PhononPacket fields (Mikey, 2026-10-28): `position`, `direction` (Vector2, unit), `intensity`, `frequency`, `distance_travelled` (float), `bounce_count` (int), `active` (bool), all defaulted so `packet = PhononPacket();` resets on recycle. float not double: Vector2 is float (real_t), and packets are numerous so smaller is more cache-friendly. Wavelength not stored (derived from speed/frequency). No per-packet distance falloff: geometric spreading (1/r in 2D) emerges from packet density; packets lose energy only to air absorption and materials.
+- PhononPacket and PhononPacketFactory are plain C++ (no GDCLASS): pooled internals never exposed to GDScript, so no Object overhead. (2026-10-28)
+- PhononPacketFactory renamed to **PhononPacketPool** (2026-10-28): it never chooses between concrete types (the core of GoF Factory), its job is reuse, so it is an Object Pool (cite Nystrom, Game Programming Patterns). Diagram/report should say "Object Pool". Benefits: no runtime allocation, bounded memory (pool size = performance budget), stable pointers, cache-friendly iteration. Costs: memory held when idle, hard cap, forgotten recycle drains the pool, stale pointers after recycle.
+- Pool design (2026-10-28): `std::vector<PhononPacket>` sized once in the constructor initializer list, never grown (growth would invalidate handed-out pointers). Size from `explicit PhononPacketPool(std::size_t p_pool_size = POOL_SIZE_DEFAULT)`, public `static constexpr std::size_t POOL_SIZE_DEFAULT = 4096` (memory is trivial, ~150 KB; real limit is per-tick CPU; tune with a peak-active debug counter). No stored pool_size (use `.size()`). `request_packet()` returns `PhononPacket*`, `nullptr` when full (pool-full policy: drop the new packet). Linear O(n) scan for a free slot for now; next-fit cursor or free-index stack if profiling shows it matters. `recycle_packet(PhononPacket&)` resets to defaults; `clear_pool()` deactivates all (must not `vector::clear()`). Packet death (cull threshold, max bounces, max range) is decided by the server.
+- Open: how the server iterates active packets each tick without being able to resize the vector. Decide when writing the server tick.
+- PhononReceiver is an abstract Node2D base (`GDREGISTER_ABSTRACT_CLASS`), not a pure C++ interface: GDCLASS doesn't mix well with multiple inheritance, and listener/sensor are scene nodes anyway. (2026-10-28)
+- Material type enum lives inside PhononMaterial (`PhononMaterial.MaterialType` in GDScript), Godot convention. (2026-10-28)
+- Source folders grouped by Godot role (server/nodes/resources), mirroring the engine's own layout. (2026-10-28)
 - Using MinGW rather than MSVC. Fallback if it becomes a time sink: VS Build Tools + plain `scons`.
 
 ## Known issues / gotchas
@@ -64,14 +94,18 @@ _Last updated: 2026-10-28_
 - First godot-cpp build in a new folder takes about 20 minutes; Windows Defender exclusion helps.
 - GDExtension `_process` runs in the editor too; guard simulation with `Engine::get_singleton()->is_editor_hint()`.
 - Godot locks the DLL while open; close it before rebuilding if the copy fails.
+- An interrupted godot-cpp archive step leaves a 0-byte temp file in `godot-cpp/bin/`; delete it and rerun.
+- godot-cpp once fully rebuilt (~25 min) for no identified reason. If it happens again, investigate.
+- Repo-wide find/replace once edited files inside `godot-cpp/test/` (submodule showed as modified). Reverted. Exclude `godot-cpp/`.
 
 ## Roadmap
 
 1. ~~Verify build and PinkCircle in this repo.~~ Done 2026-10-28.
 2. ~~Rename placeholders to phonon2d; remove ExampleClass.~~ Done and verified 2026-10-28.
-3. (next) Milestone: `PhononEmitter2D` spawning N points moving outward in a circle, drawn. No collision or audio.
-4. Editor setup: `scons compiledb=yes`, gdb debug config.
-5. Project Specification.
+3. Merge the setup PR once CI is green; branch `phonon-emitter` off `main`.
+4. (next) Milestone: `PhononEmitter2D` spawning N points moving outward in a circle, drawn. No collision or audio. Guard simulation with `is_editor_hint()`.
+5. Editor setup: `scons compiledb=yes`, gdb debug config.
+6. Project Specification (deadline was 16 Oct 2026 per the dates given; confirm its status with Mikey).
 
 ## Log
 
@@ -82,3 +116,11 @@ _Last updated: 2026-10-28_
 - Cleanup pass (Echo): untracked compiled binaries (they had been committed despite .gitignore; added ignore rules for dll/a/so/dylib). Renamed library to `Phonon2D`, entry symbol to `phonon2d_library_init`, `.gdextension` to `phonon2d.gdextension` with all library paths updated. Removed ExampleClass (src, doc XML, example.gd/tscn); CMake source list now pink_circle. Set project name and main scene. First rebuild after the rename was interrupted at the godot-cpp archive step (stray 0-byte temp file in `godot-cpp/bin/`); rerun started. Verification of the rebuilt DLL in Godot pending.
 - 17:36: rebuild finished (`Phonon2D.windows.template_debug.x86_64.dll`). It had recompiled all of godot-cpp (970 objects, ~25 min incl. archive) for reasons not identified; the previous build's objects were not reused. A follow-up no-change rebuild took 16s and reported godot-cpp up to date, so incremental builds work. If a full godot-cpp rebuild happens again unexpectedly, investigate (suspects: SCons signature cache, submodule state).
 - Mikey verified in Godot: PinkCircle runs with the renamed `Phonon2D` DLL, no errors. Setup and cleanup complete; ready to start Phonon2D development (next: PhononEmitter2D milestone).
+- Stray edits inside `godot-cpp/test/` (from a repo-wide find/replace of the entry symbol) found and reverted by Mikey. Committed "Build Ready" (`175cce3`), pushed, opened setup PR into `main`. Explained the template CI. Tidied all docs for a fresh session; next session starts on the PhononEmitter2D milestone.
+
+### 2026-10-28 (skeletons)
+- Mikey shared an architecture diagram (Factory / Mediator singleton / Observers / Material resource). Echo created empty class skeletons for it in `src/server`, `src/nodes`, `src/resources`, registered them, and updated SConstruct (subfolder glob, excludes `src/gen/` which otherwise linked twice) and CMakeLists. Builds clean with MinGW; not yet checked in the Godot editor.
+- The diagram still shows marker interfaces `IPhononPacketFactory` and `IPhononMaterial`. Not created, per the existing "marker interfaces cut" decision. Flagged to Mikey.
+- Next: prototype "phonons emitting from an emitter" (emitter -> server -> factory -> packets, drawn). Planning first, then implement with Mikey step by step.
+- Mikey wrote `PhononPacket` (fields above, with defaults, `godot::Vector2`). Next: PhononPacketFactory (pool).
+- Mikey designed and wrote the `PhononPacketPool` header (renamed from factory). Next: `.cpp` (`request_packet` linear scan, recycle, clear), then server tick.

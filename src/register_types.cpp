@@ -5,7 +5,12 @@
 #include <godot_cpp/core/defs.hpp>
 #include <godot_cpp/godot.hpp>
 
-#include "pink_circle.h"
+#include "nodes/phonon_emitter_2d.h"
+#include "nodes/phonon_listener_2d.h"
+#include "nodes/phonon_receiver.h"
+#include "nodes/phonon_sensor_2d.h"
+#include "resources/phonon_material.h"
+#include "server/phonon_server.h"
 
 using namespace godot;
 
@@ -14,7 +19,13 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level)
 	if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
 		return;
 	}
-	GDREGISTER_CLASS(PinkCircle);
+
+	GDREGISTER_CLASS(PhononServer);
+	GDREGISTER_CLASS(PhononMaterial);
+	GDREGISTER_CLASS(PhononEmitter2D);
+	GDREGISTER_ABSTRACT_CLASS(PhononReceiver);
+	GDREGISTER_CLASS(PhononListener2D);
+	GDREGISTER_CLASS(PhononSensor2D);
 }
 
 void uninitialize_gdextension_types(ModuleInitializationLevel p_level) {
