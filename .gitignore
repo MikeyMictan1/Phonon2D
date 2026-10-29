@@ -58,3 +58,5 @@ project/bin/**/*.so
 project/bin/**/*.dylib
 project/bin/**/~*
 *.a
+
+docs/

@@ -57,7 +57,24 @@ target_sources(${LIBNAME}
     src/register_types.h
     src/pink_circle.cpp
     src/pink_circle.h
+    src/server/phonon_packet.h
+    src/server/phonon_packet_pool.cpp
+    src/server/phonon_packet_pool.h
+    src/server/phonon_server.cpp
+    src/server/phonon_server.h
+    src/nodes/phonon_emitter_2d.cpp
+    src/nodes/phonon_emitter_2d.h
+    src/nodes/phonon_receiver.cpp
+    src/nodes/phonon_receiver.h
+    src/nodes/phonon_listener_2d.cpp
+    src/nodes/phonon_listener_2d.h
+    src/nodes/phonon_sensor_2d.cpp
+    src/nodes/phonon_sensor_2d.h
+    src/resources/phonon_material.cpp
+    src/resources/phonon_material.h
 )
+
+target_include_directories(${LIBNAME} PRIVATE src)
 
 # Fetch a list of the xml files to use for documentation and add to our target
 file(GLOB_RECURSE DOC_XML LIST_DIRECTORIES NO CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/doc_classes/*.xml")
