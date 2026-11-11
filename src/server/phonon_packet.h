@@ -5,7 +5,7 @@
 // A single phonon (one discrete packet of sound energy)
 struct PhononPacket {
     godot::Vector2 position = godot::Vector2(0, 0);
-    godot::Vector2 directio = godot::Vector2(0, 0);
+    godot::Vector2 direction = godot::Vector2(0, 0);
     float intensity = 0.0f;
     float frequency = 0.0f;
     float distance_travelled = 0.0f;
