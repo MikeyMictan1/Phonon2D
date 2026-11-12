@@ -1,6 +1,9 @@
 #include "server/phonon_server.h"
 #include "nodes/phonon_receiver.h"
+#include "resources/phonon_material.h"
 
+#include <godot_cpp/classes/physics_direct_space_state2d.hpp>
+#include <godot_cpp/classes/physics_ray_query_parameters2d.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/core/error_macros.hpp>
 
@@ -25,6 +28,16 @@ void PhononServer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_max_distance", "max_distance"), &PhononServer::set_max_distance);
 	ClassDB::bind_method(D_METHOD("get_max_distance"), &PhononServer::get_max_distance);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "max_distance"), "set_max_distance", "get_max_distance");
+
+	ClassDB::bind_method(D_METHOD("set_collision_mask", "mask"), &PhononServer::set_collision_mask);
+	ClassDB::bind_method(D_METHOD("get_collision_mask"), &PhononServer::get_collision_mask);
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "collision_mask", PROPERTY_HINT_LAYERS_2D_PHYSICS), "set_collision_mask", "get_collision_mask");
+
+	ClassDB::bind_method(D_METHOD("set_default_absorption", "absorption"), &PhononServer::set_default_absorption);
+	ClassDB::bind_method(D_METHOD("get_default_absorption"), &PhononServer::get_default_absorption);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "default_absorption", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_default_absorption", "get_default_absorption");
+
+	ClassDB::bind_method(D_METHOD("get_active_packet_count"), &PhononServer::get_active_packet_count);
 }
 
 // ---- Singleton ----
@@ -74,18 +87,71 @@ void PhononServer::unregister_receiver(PhononReceiver *p_receiver) {
 
 // ---- Simulation ----
 
-void PhononServer::tick(double p_delta) {
-	// TODO: loop over active packets once you've decided how the server reaches them
-	// (pool method / friend / pool runs the update). For each active packet:
-	//   advance_packet(packet, dt);
-	//   if (should_cull(packet)) packet_pool.recycle_packet(packet);
-	(void)p_delta; // silences the unused-parameter warning until then
+void PhononServer::tick(double p_delta, PhysicsDirectSpaceState2D *p_space) {
+	// How far every packet tries to move this tick (all packets share one speed: it's a property of the medium)
+	const float step = speed_of_sound * static_cast<float>(p_delta);
+
+	// One query object reused for every ray this tick. Creating one per packet would mean
+	// thousands of allocations per frame.
+	Ref<PhysicsRayQueryParameters2D> query;
+	if (p_space != nullptr) {
+		query.instantiate();
+		query->set_collision_mask(collision_mask);
+	}
+
+	packet_pool.for_each_active([&](PhononPacket &packet) {
+		// Cast a ray along the path the packet is about to take. Raycasting the whole step
+		// (instead of checking the end point) stops fast packets tunnelling through thin walls.
+		Dictionary hit;
+		if (p_space != nullptr) {
+			query->set_from(packet.position);
+			query->set_to(packet.position + packet.direction * step);
+			hit = p_space->intersect_ray(query);
+		}
+
+		if (hit.is_empty()) {
+			advance_packet(packet, step);
+		} else {
+			bounce_packet(packet, hit);
+		}
+
+		if (should_cull(packet)) {
+			packet_pool.recycle_packet(packet);
+		}
+	});
 }
 
-void PhononServer::advance_packet(PhononPacket &p_packet, float p_delta) {
-	const float step = speed_of_sound * p_delta;
-	p_packet.position += p_packet.direction * step;
-	p_packet.distance_travelled += step;
+// No collision: move the full step
+void PhononServer::advance_packet(PhononPacket &p_packet, float p_distance) {
+	p_packet.position += p_packet.direction * p_distance;
+	p_packet.distance_travelled += p_distance;
+}
+
+// Collision: move to the hit point, reflect off the surface, lose energy to the material.
+// MVP simplification: the rest of this tick's step after the hit is dropped (at most one bounce per tick).
+void PhononServer::bounce_packet(PhononPacket &p_packet, const Dictionary &p_hit) {
+	const Vector2 hit_position = p_hit["position"];
+	const Vector2 normal = p_hit["normal"];
+	Object *collider = p_hit["collider"];
+
+	p_packet.distance_travelled += p_packet.position.distance_to(hit_position);
+	p_packet.position = hit_position + normal * BOUNCE_OFFSET; // nudge off the wall
+	p_packet.direction = p_packet.direction.bounce(normal);    // d' = d - 2(d.n)n
+	p_packet.intensity *= 1.0f - get_surface_absorption(collider);
+	p_packet.bounce_count++;
+}
+
+// Absorption of whatever was hit: its PhononMaterial (via metadata) if it has one, else the default
+float PhononServer::get_surface_absorption(Object *p_collider) const {
+	if (p_collider == nullptr || !p_collider->has_meta(MATERIAL_META_KEY)) {
+		return default_absorption;
+	}
+
+	Ref<PhononMaterial> material = p_collider->get_meta(MATERIAL_META_KEY);
+	if (material.is_null()) {
+		return default_absorption; // meta set, but not to a PhononMaterial
+	}
+	return material->get_absorption();
 }
 
 bool PhononServer::should_cull(const PhononPacket &p_packet) const {
@@ -107,3 +173,15 @@ int PhononServer::get_max_bounces() const { return max_bounces; }
 
 void PhononServer::set_max_distance(float p_max_distance) { max_distance = p_max_distance; }
 float PhononServer::get_max_distance() const { return max_distance; }
+
+void PhononServer::set_collision_mask(uint32_t p_mask) { collision_mask = p_mask; }
+uint32_t PhononServer::get_collision_mask() const { return collision_mask; }
+
+void PhononServer::set_default_absorption(float p_absorption) { default_absorption = CLAMP(p_absorption, 0.0f, 1.0f); }
+float PhononServer::get_default_absorption() const { return default_absorption; }
+
+// ---- Debug ----
+
+int PhononServer::get_active_packet_count() const {
+	return static_cast<int>(packet_pool.get_active_count());
+}

@@ -16,8 +16,15 @@ public:
 		NONE,
 	};
 
+	// Fraction of a packet's intensity lost per bounce: 0 = perfect mirror, 1 = absorbs everything
+	void set_absorption(float p_absorption);
+	float get_absorption() const;
+
 protected:
 	static void _bind_methods();
+
+private:
+	float absorption = 0.1f;
 };
 
 VARIANT_ENUM_CAST(PhononMaterial::MaterialType);

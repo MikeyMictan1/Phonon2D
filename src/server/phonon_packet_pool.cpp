@@ -20,5 +20,12 @@ void PhononPacketPool::recycle_packet(PhononPacket& packet) {
     packet = PhononPacket{};
 }
 
+// Count the packets currently in use (debug helper)
+std::size_t PhononPacketPool::get_active_count() const {
+    std::size_t count = 0;
+    for_each_active([&count](const PhononPacket&) { ++count; });
+    return count;
+}
+
 // Resets all the packets in the packet pool
 void PhononPacketPool::clear_pool() { std::fill(packets.begin(), packets.end(), PhononPacket{}); }

@@ -1,6 +1,7 @@
 #include "register_types.h"
 
 #include <gdextension_interface.h>
+#include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/core/defs.hpp>
 #include <godot_cpp/godot.hpp>
@@ -14,24 +15,37 @@
 
 using namespace godot;
 
+// The one PhononServer instance, owned by the extension for its whole lifetime
+static PhononServer *phonon_server = nullptr;
+
 void initialize_gdextension_types(ModuleInitializationLevel p_level)
 {
 	if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
 		return;
 	}
 
-	GDREGISTER_CLASS(PhononServer);
+	// Abstract: GDScript can't call PhononServer.new(); only this file creates it
+	GDREGISTER_ABSTRACT_CLASS(PhononServer);
 	GDREGISTER_CLASS(PhononMaterial);
 	GDREGISTER_CLASS(PhononEmitter2D);
 	GDREGISTER_ABSTRACT_CLASS(PhononReceiver);
 	GDREGISTER_CLASS(PhononListener2D);
 	GDREGISTER_CLASS(PhononSensor2D);
+
+	// Create the server after its class is registered, then expose it to GDScript by name
+	phonon_server = memnew(PhononServer);
+	Engine::get_singleton()->register_singleton("PhononServer", phonon_server);
 }
 
 void uninitialize_gdextension_types(ModuleInitializationLevel p_level) {
 	if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
 		return;
 	}
+
+	// Reverse order of creation: hide it from GDScript first, then free it
+	Engine::get_singleton()->unregister_singleton("PhononServer");
+	memdelete(phonon_server);
+	phonon_server = nullptr;
 }
 
 extern "C"
