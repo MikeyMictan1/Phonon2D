@@ -10,6 +10,7 @@
 #include "nodes/phonon_listener_2d.h"
 #include "nodes/phonon_receiver.h"
 #include "nodes/phonon_sensor_2d.h"
+#include "nodes/phonon_world_2d.h"
 #include "resources/phonon_material.h"
 #include "server/phonon_server.h"
 
@@ -31,6 +32,7 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level)
 	GDREGISTER_ABSTRACT_CLASS(PhononReceiver);
 	GDREGISTER_CLASS(PhononListener2D);
 	GDREGISTER_CLASS(PhononSensor2D);
+	GDREGISTER_CLASS(PhononWorld2D);
 
 	// Create the server after its class is registered, then expose it to GDScript by name
 	phonon_server = memnew(PhononServer);

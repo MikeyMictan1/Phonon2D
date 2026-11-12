@@ -38,6 +38,7 @@ void PhononServer::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "default_absorption", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_default_absorption", "get_default_absorption");
 
 	ClassDB::bind_method(D_METHOD("get_active_packet_count"), &PhononServer::get_active_packet_count);
+	ClassDB::bind_method(D_METHOD("clear_packets"), &PhononServer::clear_packets);
 }
 
 // ---- Singleton ----
@@ -184,4 +185,8 @@ float PhononServer::get_default_absorption() const { return default_absorption; 
 
 int PhononServer::get_active_packet_count() const {
 	return static_cast<int>(packet_pool.get_active_count());
+}
+
+void PhononServer::clear_packets() {
+	packet_pool.clear_pool();
 }

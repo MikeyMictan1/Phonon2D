@@ -15,6 +15,10 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 [application]
 
 config/name="Phonon2D"
-run/main_scene="res://pink_circle.tscn"
+run/main_scene="res://phonon_test.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 config/icon="res://icon.svg"
+
+[layer_names]
+
+2d_physics/layer_5="phonon"

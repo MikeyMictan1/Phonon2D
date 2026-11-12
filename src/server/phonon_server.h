@@ -56,6 +56,9 @@ public:
 
 	int get_active_packet_count() const; // debug, bound to GDScript
 
+	// Deactivates every packet (e.g. when a scene's PhononWorld2D leaves the tree). Bound to GDScript.
+	void clear_packets();
+
 	// Config (bound to GDScript as properties)
 	void set_speed_of_sound(float p_speed);
 	float get_speed_of_sound() const;
