@@ -1,6 +1,6 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://bb5iymlop2q7c"]
 
-[ext_resource type="Script" path="res://phonon_test.gd" id="1_test"]
+[ext_resource type="Script" uid="uid://bn3sf40xu07t5" path="res://phonon_test.gd" id="1_test"]
 
 [sub_resource type="RectangleShape2D" id="Rect_horizontal"]
 size = Vector2(1152, 20)
@@ -8,24 +8,24 @@ size = Vector2(1152, 20)
 [sub_resource type="RectangleShape2D" id="Rect_vertical"]
 size = Vector2(20, 648)
 
-[sub_resource type="RectangleShape2D" id="Rect_inner"]
-size = Vector2(20, 300)
-
 [sub_resource type="PhononMaterial" id="Material_soft"]
 absorption = 0.6
 
-[node name="PhononTest" type="Node2D"]
+[sub_resource type="RectangleShape2D" id="Rect_inner"]
+size = Vector2(20, 300)
+
+[node name="PhononTest" type="Node2D" unique_id=838167029]
 script = ExtResource("1_test")
 
-[node name="WallTop" type="StaticBody2D" parent="."]
+[node name="WallTop" type="StaticBody2D" parent="." unique_id=383187126]
 position = Vector2(576, 10)
 collision_layer = 16
 collision_mask = 0
 
-[node name="Shape" type="CollisionShape2D" parent="WallTop"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="WallTop" unique_id=684988607]
 shape = SubResource("Rect_horizontal")
 
-[node name="Visual" type="ColorRect" parent="WallTop"]
+[node name="Visual" type="ColorRect" parent="WallTop" unique_id=534788669]
 offset_left = -576.0
 offset_top = -10.0
 offset_right = 576.0
@@ -33,15 +33,15 @@ offset_bottom = 10.0
 mouse_filter = 2
 color = Color(0.53, 0.53, 0.5, 1)
 
-[node name="WallBottom" type="StaticBody2D" parent="."]
+[node name="WallBottom" type="StaticBody2D" parent="." unique_id=191332774]
 position = Vector2(576, 638)
 collision_layer = 16
 collision_mask = 0
 
-[node name="Shape" type="CollisionShape2D" parent="WallBottom"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="WallBottom" unique_id=334480569]
 shape = SubResource("Rect_horizontal")
 
-[node name="Visual" type="ColorRect" parent="WallBottom"]
+[node name="Visual" type="ColorRect" parent="WallBottom" unique_id=347398115]
 offset_left = -576.0
 offset_top = -10.0
 offset_right = 576.0
@@ -49,15 +49,15 @@ offset_bottom = 10.0
 mouse_filter = 2
 color = Color(0.53, 0.53, 0.5, 1)
 
-[node name="WallLeft" type="StaticBody2D" parent="."]
+[node name="WallLeft" type="StaticBody2D" parent="." unique_id=946990137]
 position = Vector2(10, 324)
 collision_layer = 16
 collision_mask = 0
 
-[node name="Shape" type="CollisionShape2D" parent="WallLeft"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="WallLeft" unique_id=64522907]
 shape = SubResource("Rect_vertical")
 
-[node name="Visual" type="ColorRect" parent="WallLeft"]
+[node name="Visual" type="ColorRect" parent="WallLeft" unique_id=2018507664]
 offset_left = -10.0
 offset_top = -324.0
 offset_right = 10.0
@@ -65,16 +65,16 @@ offset_bottom = 324.0
 mouse_filter = 2
 color = Color(0.53, 0.53, 0.5, 1)
 
-[node name="WallRightSoft" type="StaticBody2D" parent="."]
+[node name="WallRightSoft" type="StaticBody2D" parent="." unique_id=1088256769]
 position = Vector2(1142, 324)
 collision_layer = 16
 collision_mask = 0
 metadata/phonon_material = SubResource("Material_soft")
 
-[node name="Shape" type="CollisionShape2D" parent="WallRightSoft"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="WallRightSoft" unique_id=646468080]
 shape = SubResource("Rect_vertical")
 
-[node name="Visual" type="ColorRect" parent="WallRightSoft"]
+[node name="Visual" type="ColorRect" parent="WallRightSoft" unique_id=1526570507]
 offset_left = -10.0
 offset_top = -324.0
 offset_right = 10.0
@@ -82,15 +82,15 @@ offset_bottom = 324.0
 mouse_filter = 2
 color = Color(0.85, 0.35, 0.19, 1)
 
-[node name="WallInner" type="StaticBody2D" parent="."]
+[node name="WallInner" type="StaticBody2D" parent="." unique_id=59597724]
 position = Vector2(760, 324)
 collision_layer = 16
 collision_mask = 0
 
-[node name="Shape" type="CollisionShape2D" parent="WallInner"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="WallInner" unique_id=804377923]
 shape = SubResource("Rect_inner")
 
-[node name="Visual" type="ColorRect" parent="WallInner"]
+[node name="Visual" type="ColorRect" parent="WallInner" unique_id=1187859347]
 offset_left = -10.0
 offset_top = -150.0
 offset_right = 10.0
@@ -98,12 +98,14 @@ offset_bottom = 150.0
 mouse_filter = 2
 color = Color(0.53, 0.53, 0.5, 1)
 
-[node name="PhononEmitter2D" type="PhononEmitter2D" parent="."]
+[node name="PhononEmitter2D" type="PhononEmitter2D" parent="." unique_id=216835246]
 position = Vector2(350, 324)
 
-[node name="PhononWorld2D" type="PhononWorld2D" parent="."]
+[node name="PhononWorld2D" type="PhononWorld2D" parent="." unique_id=1427631798]
+dot_radius = 1.0
+trail_length = 2.0
 
-[node name="Label" type="Label" parent="."]
+[node name="Label" type="Label" parent="." unique_id=357083650]
 offset_left = 32.0
 offset_top = 28.0
 offset_right = 400.0
