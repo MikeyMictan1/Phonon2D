@@ -28,9 +28,6 @@ protected:
 	static void _bind_methods();
 
 public:
-	// Metadata key a collider uses to point at its PhononMaterial: wall.set_meta("phonon_material", mat)
-	static constexpr const char *MATERIAL_META_KEY = "phonon_material";
-
 	// Singleton created and destroyed in register_types.cpp (memnew / memdelete),
 	static PhononServer *get_singleton();
 
@@ -92,11 +89,11 @@ private:
 	int max_bounces = 8;
 	float max_distance = 2000.0f;
 	uint32_t collision_mask = 1u << 4; // physics layer 5 ("phonon"): only these colliders affect sound
-	float default_absorption = 0.1f;   // used when a collider has no PhononMaterial (hard, reflective surface)
+	float default_absorption = 0.1f;
 
 	// tick helpers
 	void advance_packet(PhononPacket &p_packet, float p_distance);
 	void bounce_packet(PhononPacket &p_packet, const Dictionary &p_hit);
-	float get_surface_absorption(Object *p_collider) const;
+	float get_surface_absorption(Object *p_collider, int p_shape_index) const;
 	bool should_cull(const PhononPacket &p_packet) const;
 };

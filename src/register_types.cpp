@@ -6,6 +6,7 @@
 #include <godot_cpp/core/defs.hpp>
 #include <godot_cpp/godot.hpp>
 
+#include "nodes/phonon_collision_shape_2d.h"
 #include "nodes/phonon_emitter_2d.h"
 #include "nodes/phonon_listener_2d.h"
 #include "nodes/phonon_receiver.h"
@@ -33,6 +34,7 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level)
 	GDREGISTER_CLASS(PhononListener2D);
 	GDREGISTER_CLASS(PhononSensor2D);
 	GDREGISTER_CLASS(PhononWorld2D);
+	GDREGISTER_CLASS(PhononCollisionShape2D);
 
 	// Create the server after its class is registered, then expose it to GDScript by name
 	phonon_server = memnew(PhononServer);

@@ -1,7 +1,9 @@
 #include "server/phonon_server.h"
 #include "nodes/phonon_receiver.h"
+#include "nodes/phonon_collision_shape_2d.h"
 #include "resources/phonon_material.h"
 
+#include <godot_cpp/classes/collision_object2d.hpp>
 #include <godot_cpp/classes/physics_direct_space_state2d.hpp>
 #include <godot_cpp/classes/physics_ray_query_parameters2d.hpp>
 #include <godot_cpp/core/class_db.hpp>
@@ -129,30 +131,34 @@ void PhononServer::advance_packet(PhononPacket &p_packet, float p_distance) {
 }
 
 // Collision: move to the hit point, reflect off the surface, lose energy to the material.
-// MVP simplification: the rest of this tick's step after the hit is dropped (at most one bounce per tick).
 void PhononServer::bounce_packet(PhononPacket &p_packet, const Dictionary &p_hit) {
 	const Vector2 hit_position = p_hit["position"];
-	const Vector2 normal = p_hit["normal"];
+	const Vector2 normal = p_hit["normal"]; // Normal of the wall/surface collided with
 	Object *collider = p_hit["collider"];
+	const int shape_index = p_hit["shape"]; // which of the collider's shapes the ray hit
 
 	p_packet.distance_travelled += p_packet.position.distance_to(hit_position);
 	p_packet.position = hit_position + normal * BOUNCE_OFFSET; // nudge off the wall
 	p_packet.direction = p_packet.direction.bounce(normal);    // d' = d - 2(d.n)n
-	p_packet.intensity *= 1.0f - get_surface_absorption(collider);
+	p_packet.intensity *= 1.0f - get_surface_absorption(collider, shape_index);
 	p_packet.bounce_count++;
 }
 
-// Absorption of whatever was hit: its PhononMaterial (via metadata) if it has one, else the default
-float PhononServer::get_surface_absorption(Object *p_collider) const {
-	if (p_collider == nullptr || !p_collider->has_meta(MATERIAL_META_KEY)) {
-		return default_absorption;
+// Absorption of the exact shape that was hit: its PhononMaterial if it's a PhononCollisionShape2D
+// with one set, otherwise the default (hard, reflective surface).
+float PhononServer::get_surface_absorption(Object *p_collider, int p_shape_index) const {
+	// The ray reports the body plus a shape index; map the index back to the shape node that owns it
+	const CollisionObject2D *body = Object::cast_to<CollisionObject2D>(p_collider);
+	if (body == nullptr) {
+		return default_absorption; // not a CollisionObject2D (e.g. a TileMapLayer): no shape nodes to check
 	}
 
-	Ref<PhononMaterial> material = p_collider->get_meta(MATERIAL_META_KEY);
-	if (material.is_null()) {
-		return default_absorption; // meta set, but not to a PhononMaterial
+	const uint32_t owner_id = body->shape_find_owner(p_shape_index);
+	const PhononCollisionShape2D *shape = Object::cast_to<PhononCollisionShape2D>(body->shape_owner_get_owner(owner_id));
+	if (shape == nullptr || shape->get_phonon_material().is_null()) {
+		return default_absorption; // plain CollisionShape2D / polygon, or no material assigned
 	}
-	return material->get_absorption();
+	return shape->get_phonon_material()->get_absorption();
 }
 
 bool PhononServer::should_cull(const PhononPacket &p_packet) const {
