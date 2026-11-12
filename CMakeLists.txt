@@ -70,8 +70,14 @@ target_sources(${LIBNAME}
     src/nodes/phonon_listener_2d.h
     src/nodes/phonon_sensor_2d.cpp
     src/nodes/phonon_sensor_2d.h
+    src/nodes/phonon_world_2d.cpp
+    src/nodes/phonon_world_2d.h
+    src/nodes/phonon_collision_shape_2d.cpp
+    src/nodes/phonon_collision_shape_2d.h
     src/resources/phonon_material.cpp
     src/resources/phonon_material.h
+    src/errors/error.cpp
+    src/errors/error.h
 )
 
 target_include_directories(${LIBNAME} PRIVATE src)
