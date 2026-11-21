@@ -39,6 +39,9 @@ compile_commands.json
 # Other stuff
 *.log
 
+# Python venv (holds SCons)
+.venv/
+
 # VSCode
 .vscode/*
 !.vscode/extensions.json
