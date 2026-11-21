@@ -18,7 +18,7 @@ Phonon2D provides developers with an open-source toolset for integrating complex
 
 
 ## Tech Stack
-**Languages** : C++, GDScript <br>
+**Languages** : C++17, GDScript <br>
 **Engine** : Godot <br>
 **Software Type**: GDExtension - A library of Phonon2D nodes <br>
 **Dimension** : 2D (for now) <br>
@@ -37,5 +37,6 @@ Phonon2D provides developers with an open-source toolset for integrating complex
 `Absorption Type`: PhononMaterial property, deciding how absorbing the material is based on material options + parameters.
 
 
-## Architecture (Outdated)
-<img width="3055" height="2160" alt="image" src="https://github.com/user-attachments/assets/f54f17ad-3cd4-4292-b3bb-5823fd3fdc81" />
+## High-Level Architecture
+<img width="1774" height="1004" alt="image" src="https://github.com/user-attachments/assets/200e3d1f-0918-4782-8fcf-c4b370a686b2" />
+
