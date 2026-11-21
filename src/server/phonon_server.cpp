@@ -10,6 +10,7 @@
 #include <godot_cpp/core/error_macros.hpp>
 
 #include <algorithm>
+#include <cmath>
 
 // Static members need exactly one definition in one .cpp
 PhononServer *PhononServer::singleton = nullptr;
@@ -41,6 +42,10 @@ void PhononServer::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("get_active_packet_count"), &PhononServer::get_active_packet_count);
 	ClassDB::bind_method(D_METHOD("clear_packets"), &PhononServer::clear_packets);
+
+	ClassDB::bind_method(D_METHOD("set_air_absorption", "absorption"), &PhononServer::set_air_absorption);
+	ClassDB::bind_method(D_METHOD("get_air_absorption"), &PhononServer::get_air_absorption);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "air_absorption", PROPERTY_HINT_RANGE, "0,0.01,0.0001"), "set_air_absorption", "get_air_absorption");
 }
 
 // ---- Singleton ----
@@ -128,6 +133,12 @@ void PhononServer::tick(double p_delta, PhysicsDirectSpaceState2D *p_space) {
 void PhononServer::advance_packet(PhononPacket &p_packet, float p_distance) {
 	p_packet.position += p_packet.direction * p_distance;
 	p_packet.distance_travelled += p_distance;
+	apply_air_absorption(p_packet, p_distance);
+}
+
+// Air absorption, slightly reduce intensity based on distance travelled (Beer-Lambert formula applied to sound)
+void PhononServer::apply_air_absorption(PhononPacket &p_packet, float p_distance) {
+	p_packet.intensity *= std::exp(-air_absorption * p_distance);
 }
 
 // Collision: move to the hit point, reflect off the surface, lose energy to the material.
@@ -136,11 +147,13 @@ void PhononServer::bounce_packet(PhononPacket &p_packet, const Dictionary &p_hit
 	const Vector2 normal = p_hit["normal"]; // Normal of the wall/surface collided with
 	Object *collider = p_hit["collider"];
 	const int shape_index = p_hit["shape"]; // which of the collider's shapes the ray hit
+	const float distance =  p_packet.position.distance_to(hit_position);
 
-	p_packet.distance_travelled += p_packet.position.distance_to(hit_position);
+	p_packet.distance_travelled += distance;
 	p_packet.position = hit_position + normal * BOUNCE_OFFSET; // nudge off the wall
 	p_packet.direction = p_packet.direction.bounce(normal);    // d' = d - 2(d.n)n
 	p_packet.intensity *= 1.0f - get_surface_absorption(collider, shape_index);
+	apply_air_absorption(p_packet, distance);
 	p_packet.bounce_count++;
 }
 
@@ -186,6 +199,9 @@ uint32_t PhononServer::get_collision_mask() const { return collision_mask; }
 
 void PhononServer::set_default_absorption(float p_absorption) { default_absorption = CLAMP(p_absorption, 0.0f, 1.0f); }
 float PhononServer::get_default_absorption() const { return default_absorption; }
+
+void PhononServer::set_air_absorption(float p_absorption) { air_absorption = MAX(p_absorption, 0.0f); } // negative would add energy
+float PhononServer::get_air_absorption() const { return air_absorption; }
 
 // ---- Debug ----
 

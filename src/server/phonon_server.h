@@ -34,29 +34,27 @@ public:
 	PhononServer();
 	~PhononServer();
 
-	// Emitter API: Pulls a packet from the pool and initializes it. Returns nullptr if the pool is full (packet dropped).
+	// Emitter API -----------------------------------------------------------------------
 	PhononPacket *spawn_packet(const Vector2 &p_position, const Vector2 &p_direction, float p_intensity, float p_frequency);
 
-	// Receiver API: Receivers add themselves when they enter the tree and remove themselves when they leave.
+	// Receiver API -----------------------------------------------------------------------
 	void register_receiver(PhononReceiver *p_receiver);
 	void unregister_receiver(PhononReceiver *p_receiver);
 
-	// Simulation: advances every active packet by one step, bouncing off colliders in p_space.
+	// Simulation -----------------------------------------------------------------------
 	// Called once per physics frame by PhononWorld2D. p_space may be null (packets then fly through everything).
 	void tick(double p_delta, PhysicsDirectSpaceState2D *p_space);
 
 	// Read-only access to active packets, for drawing/debugging. Same idea as the pool's for_each_active.
 	template <typename Func>
-	void for_each_active_packet(Func &&p_func) const {
-		packet_pool.for_each_active(std::forward<Func>(p_func));
-	}
+	void for_each_active_packet(Func &&p_func) const {packet_pool.for_each_active(std::forward<Func>(p_func));}
 
 	int get_active_packet_count() const; // debug, bound to GDScript
 
 	// Deactivates every packet (e.g. when a scene's PhononWorld2D leaves the tree). Bound to GDScript.
 	void clear_packets();
 
-	// Config (bound to GDScript as properties)
+	// Config (bound to GDScript as properties) -----------------------------------------------------------------------
 	void set_speed_of_sound(float p_speed);
 	float get_speed_of_sound() const;
 
@@ -75,6 +73,9 @@ public:
 	void set_default_absorption(float p_absorption);
 	float get_default_absorption() const;
 
+	void set_air_absorption(float p_absorption);
+	float get_air_absorption() const;
+
 private:
 	static PhononServer *singleton;
 
@@ -90,9 +91,11 @@ private:
 	float max_distance = 2000.0f;
 	uint32_t collision_mask = 1u << 4; // physics layer 5 ("phonon"): only these colliders affect sound
 	float default_absorption = 0.1f;
+	float air_absorption = 0.001f;
 
 	// tick helpers
 	void advance_packet(PhononPacket &p_packet, float p_distance);
+	void apply_air_absorption(PhononPacket &p_packet, float p_distance);
 	void bounce_packet(PhononPacket &p_packet, const Dictionary &p_hit);
 	float get_surface_absorption(Object *p_collider, int p_shape_index) const;
 	bool should_cull(const PhononPacket &p_packet) const;
