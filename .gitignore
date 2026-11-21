@@ -62,4 +62,4 @@ project/bin/**/*.dylib
 project/bin/**/~*
 *.a
 
-docs/
+context/
