@@ -5,6 +5,7 @@
 #include <godot_cpp/variant/vector2.hpp>
 
 #include "server/phonon_packet_pool.h"
+#include "debug/phonon_stats.h"
 
 #include <cstdint>
 #include <utility>
@@ -33,6 +34,11 @@ public:
 
 	PhononServer();
 	~PhononServer();
+
+	// Benchmarking/Debugging -------------------------------------------------------------
+	Dictionary get_stats() const;
+	void set_profiling_enabled(bool p_enabled);
+	bool is_profiling_enabled() const;
 
 	// Emitter API -----------------------------------------------------------------------
 	PhononPacket *spawn_packet(const Vector2 &p_position, const Vector2 &p_direction, float p_intensity, float p_frequency);
@@ -78,6 +84,10 @@ public:
 
 private:
 	static PhononServer *singleton;
+
+	// Debugging
+	PhononStats stats;
+	bool profiling_enabled = false;
 
 	// How far off the wall a packet is placed after a bounce, so next tick's ray doesn't start on the surface
 	static constexpr float BOUNCE_OFFSET = 0.01f;

@@ -7,15 +7,25 @@ extends Node2D
 
 
 func _ready() -> void:
+	# Debugging
+	PhononServer.profiling_enabled = true
+	Performance.add_custom_monitor("Phonon/tick_ms", func(): return PhononServer.get_stats().tick_ms / 1000.0, [], Performance.MONITOR_TYPE_TIME)
+	Performance.add_custom_monitor("Phonon/active_packets", func(): return PhononServer.get_stats().active_packets)
+	
 	print("PhononServer.speed_of_sound = ", PhononServer.speed_of_sound)
+	
+	
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("ui_accept"):
+	if event.is_action("ui_accept"):
 		emitter.emit_phonons()
+
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		emitter.global_position = event.position
 		emitter.emit_phonons()
+	
+
 
 
 func _process(_delta: float) -> void:
