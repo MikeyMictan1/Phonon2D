@@ -2,6 +2,7 @@
 #include "nodes/phonon_receiver.h"
 #include "nodes/phonon_collision_shape_2d.h"
 #include "resources/phonon_material.h"
+#include "debug/ScopeTimer.h"
 
 #include <godot_cpp/classes/collision_object2d.hpp>
 #include <godot_cpp/classes/physics_direct_space_state2d.hpp>
@@ -16,6 +17,11 @@
 PhononServer *PhononServer::singleton = nullptr;
 
 void PhononServer::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("get_stats"), &PhononServer::get_stats);
+	ClassDB::bind_method(D_METHOD("set_profiling_enabled", "enabled"), &PhononServer::set_profiling_enabled);
+	ClassDB::bind_method(D_METHOD("is_profiling_enabled"), &PhononServer::is_profiling_enabled);
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "profiling_enabled"), "set_profiling_enabled", "is_profiling_enabled");
+
 	ClassDB::bind_method(D_METHOD("set_speed_of_sound", "speed"), &PhononServer::set_speed_of_sound);
 	ClassDB::bind_method(D_METHOD("get_speed_of_sound"), &PhononServer::get_speed_of_sound);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "speed_of_sound"), "set_speed_of_sound", "get_speed_of_sound");
@@ -96,6 +102,10 @@ void PhononServer::unregister_receiver(PhononReceiver *p_receiver) {
 // ---- Simulation ----
 
 void PhononServer::tick(double p_delta, PhysicsDirectSpaceState2D *p_space) {
+	// Debugging/stats setup
+	stats = PhononStats{};
+	ScopeTimer tick_timer(stats.tick_ns);
+
 	// How far every packet tries to move this tick (all packets share one speed: it's a property of the medium)
 	const float step = speed_of_sound * static_cast<float>(p_delta);
 
@@ -108,13 +118,23 @@ void PhononServer::tick(double p_delta, PhysicsDirectSpaceState2D *p_space) {
 	}
 
 	packet_pool.for_each_active([&](PhononPacket &packet) {
+		stats.active_packets++; // always counted: one add per packet, effectively free
+
 		// Cast a ray along the path the packet is about to take. Raycasting the whole step
 		// (instead of checking the end point) stops fast packets tunnelling through thin walls.
 		Dictionary hit;
 		if (p_space != nullptr) {
 			query->set_from(packet.position);
 			query->set_to(packet.position + packet.direction * step);
-			hit = p_space->intersect_ray(query);
+
+			// Benchmarking
+			if (profiling_enabled) { 
+				ScopeTimer ray_timer(stats.raycast_ns); 
+				stats.raycast_count++;
+				hit = p_space->intersect_ray(query);
+			}
+			else { hit = p_space->intersect_ray(query); }
+			
 		}
 
 		if (hit.is_empty()) {
@@ -212,3 +232,16 @@ int PhononServer::get_active_packet_count() const {
 void PhononServer::clear_packets() {
 	packet_pool.clear_pool();
 }
+
+// Converted to milliseconds only here, for display
+Dictionary PhononServer::get_stats() const {
+	Dictionary d;
+	d["tick_ms"] = stats.tick_ns / 1.0e6;
+	d["raycast_ms"] = stats.raycast_ns / 1.0e6;
+	d["raycast_count"] = stats.raycast_count;
+	d["active_packets"] = stats.active_packets;
+	return d;
+}
+
+void PhononServer::set_profiling_enabled(bool p_enabled) { profiling_enabled = p_enabled; }
+bool PhononServer::is_profiling_enabled() const { return profiling_enabled; }

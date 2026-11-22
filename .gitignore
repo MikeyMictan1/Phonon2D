@@ -52,6 +52,7 @@ compile_commands.json
 
 # Cmake
 cmake-build*
+/build/
 CMakeUserPresets.json
 
 # Compiled libraries copied into the Godot project
