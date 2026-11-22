@@ -1,7 +1,11 @@
 #include "nodes/phonon_world_2d.h"
 #include "server/phonon_server.h"
 
+#include <godot_cpp/classes/collision_object2d.hpp>
+#include <godot_cpp/classes/collision_polygon2d.hpp>
+#include <godot_cpp/classes/collision_shape2d.hpp>
 #include <godot_cpp/classes/engine.hpp>
+#include <godot_cpp/classes/window.hpp>
 #include <godot_cpp/classes/scene_tree.hpp>
 #include <godot_cpp/classes/world2d.hpp>
 #include <godot_cpp/core/class_db.hpp>
@@ -27,12 +31,35 @@ void PhononWorld2D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_min_alpha", "alpha"), &PhononWorld2D::set_min_alpha);
 	ClassDB::bind_method(D_METHOD("get_min_alpha"), &PhononWorld2D::get_min_alpha);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "min_alpha", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_min_alpha", "get_min_alpha");
+
+	ClassDB::bind_method(D_METHOD("set_debug_draw_geometry", "enabled"), &PhononWorld2D::set_debug_draw_geometry);
+	ClassDB::bind_method(D_METHOD("get_debug_draw_geometry"), &PhononWorld2D::get_debug_draw_geometry);
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "debug_draw_geometry"), "set_debug_draw_geometry", "get_debug_draw_geometry");
+
+	ClassDB::bind_method(D_METHOD("rebuild_geometry"), &PhononWorld2D::rebuild_geometry);
+	ClassDB::bind_method(D_METHOD("_on_tree_node_changed", "node"), &PhononWorld2D::_on_tree_node_changed);
 }
 
 // ---- Lifecycle ----
 
 void PhononWorld2D::_enter_tree() {
 	add_to_group(GROUP_NAME);
+	if (Engine::get_singleton()->is_editor_hint()) {
+		return;
+	}
+
+	PhononServer *server = PhononServer::get_singleton();
+	if (server == nullptr) {
+		return;
+	}
+	// Bake walls from the whole tree (the actual bake happens lazily at the start of the next tick,
+	// once every sibling has entered the tree too)
+	server->set_geometry_root(get_tree()->get_root());
+
+	// Rebake automatically when colliders are added or removed at runtime
+	const Callable on_changed = Callable(this, "_on_tree_node_changed");
+	get_tree()->connect("node_added", on_changed);
+	get_tree()->connect("node_removed", on_changed);
 }
 
 // Leaving the tree (scene change, node deleted): this scene's packets shouldn't carry over into the next one
@@ -40,9 +67,34 @@ void PhononWorld2D::_exit_tree() {
 	if (Engine::get_singleton()->is_editor_hint()) {
 		return;
 	}
+	const Callable on_changed = Callable(this, "_on_tree_node_changed");
+	if (get_tree()->is_connected("node_added", on_changed)) {
+		get_tree()->disconnect("node_added", on_changed);
+		get_tree()->disconnect("node_removed", on_changed);
+	}
+
 	PhononServer *server = PhononServer::get_singleton();
 	if (server != nullptr) {
 		server->clear_packets();
+		server->clear_geometry();
+	}
+}
+
+// Only nodes that can change the walls matter. Everything else (bullets, UI, ...) is one cast and out.
+void PhononWorld2D::_on_tree_node_changed(Node *p_node) {
+	if (Object::cast_to<CollisionObject2D>(p_node) == nullptr && Object::cast_to<CollisionShape2D>(p_node) == nullptr && Object::cast_to<CollisionPolygon2D>(p_node) == nullptr) {
+		return;
+	}
+	PhononServer *server = PhononServer::get_singleton();
+	if (server != nullptr) {
+		server->mark_geometry_dirty(); // many changes in one frame still mean one rebake
+	}
+}
+
+void PhononWorld2D::rebuild_geometry() {
+	PhononServer *server = PhononServer::get_singleton();
+	if (server != nullptr) {
+		server->mark_geometry_dirty();
 	}
 }
 
@@ -61,15 +113,12 @@ void PhononWorld2D::_physics_process(double p_delta) {
 	PhysicsDirectSpaceState2D *space = get_world_2d()->get_direct_space_state();
 	server->tick(p_delta, space);
 
-	if (debug_draw) {
+	if (debug_draw || debug_draw_geometry) {
 		queue_redraw();
 	}
 }
 
 void PhononWorld2D::_draw() {
-	if (!debug_draw) {
-		return;
-	}
 	const PhononServer *server = PhononServer::get_singleton();
 	if (server == nullptr) {
 		return;
@@ -78,6 +127,13 @@ void PhononWorld2D::_draw() {
 	// Packet positions are in global (world) coordinates. Undo this node's own transform once,
 	// so the dots land in the right place even if the node has been moved, rotated or scaled.
 	draw_set_transform_matrix(get_global_transform().affine_inverse());
+
+	if (debug_draw_geometry) {
+		draw_geometry();
+	}
+	if (!debug_draw) {
+		return;
+	}
 
 	const int count = server->get_active_packet_count();
 	if (count == 0) {
@@ -125,6 +181,26 @@ void PhononWorld2D::_draw() {
 	draw_multiline_colors(dot_points, colors, dot_radius * 2.0f);
 }
 
+// The walls exactly as the raycaster sees them: static grey, moving orange
+void PhononWorld2D::draw_geometry() {
+	const PhononGeometry &geometry = PhononServer::get_singleton()->get_geometry();
+	auto draw_segments = [this](const std::vector<WallSegment> &p_segments, const Color &p_color) {
+		if (p_segments.empty()) {
+			return;
+		}
+		PackedVector2Array points;
+		points.resize(static_cast<int64_t>(p_segments.size()) * 2);
+		Vector2 *write = points.ptrw();
+		for (std::size_t i = 0; i < p_segments.size(); i++) {
+			write[i * 2] = p_segments[i].a;
+			write[i * 2 + 1] = p_segments[i].b;
+		}
+		draw_multiline(points, p_color, 2.0f);
+	};
+	draw_segments(geometry.get_static_segments(), Color(0.85f, 0.85f, 0.85f, 0.9f));
+	draw_segments(geometry.get_dynamic_segments(), Color(1.0f, 0.55f, 0.1f, 0.9f));
+}
+
 // Yellow warning triangle in the editor if a scene has more than one PhononWorld2D
 // (each one ticks the server, so two would run the simulation at double speed)
 PackedStringArray PhononWorld2D::_get_configuration_warnings() const {
@@ -154,3 +230,9 @@ float PhononWorld2D::get_trail_length() const { return trail_length; }
 
 void PhononWorld2D::set_min_alpha(float p_alpha) { min_alpha = CLAMP(p_alpha, 0.0f, 1.0f); }
 float PhononWorld2D::get_min_alpha() const { return min_alpha; }
+
+void PhononWorld2D::set_debug_draw_geometry(bool p_enabled) {
+	debug_draw_geometry = p_enabled;
+	queue_redraw();
+}
+bool PhononWorld2D::get_debug_draw_geometry() const { return debug_draw_geometry; }

@@ -41,6 +41,13 @@ public:
 	void set_min_alpha(float p_alpha);
 	float get_min_alpha() const;
 
+	// Draws the baked wall segments (static grey, moving orange) to check the bake matches the colliders
+	void set_debug_draw_geometry(bool p_enabled);
+	bool get_debug_draw_geometry() const;
+
+	// Ask the server to rebake the walls before the next tick. Normally automatic; exposed for GDScript.
+	void rebuild_geometry();
+
 protected:
 	static void _bind_methods();
 
@@ -50,4 +57,9 @@ private:
 	float dot_radius = 2.5f;
 	float trail_length = 14.0f;
 	float min_alpha = 0.15f; // weakest packets still stay faintly visible
+	bool debug_draw_geometry = false;
+
+	// SceneTree node_added / node_removed: a collider appearing or disappearing means the walls changed
+	void _on_tree_node_changed(Node *p_node);
+	void draw_geometry();
 };

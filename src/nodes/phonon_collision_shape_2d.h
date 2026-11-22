@@ -20,6 +20,9 @@ class PhononCollisionShape2D : public CollisionShape2D {
 	GDCLASS(PhononCollisionShape2D, CollisionShape2D)
 
 public:
+	// Emitted when a different material is assigned, so the phonon raycaster can rebake
+	static constexpr const char *MATERIAL_CHANGED_SIGNAL = "phonon_material_changed";
+
 	// Named phonon_material, not material: CanvasItem already has a "material" property (for shaders)
 	void set_phonon_material(const Ref<PhononMaterial> &p_material);
 	Ref<PhononMaterial> get_phonon_material() const;
