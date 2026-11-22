@@ -79,15 +79,50 @@ void PhononWorld2D::_draw() {
 	// so the dots land in the right place even if the node has been moved, rotated or scaled.
 	draw_set_transform_matrix(get_global_transform().affine_inverse());
 
-	server->for_each_active_packet([this](const PhononPacket &packet) {
+	const int count = server->get_active_packet_count();
+	if (count == 0) {
+		return;
+	}
+
+	// Batched drawing: fill arrays in plain C++, then hand them to the engine in two calls,
+	// instead of one draw_line + draw_circle per packet (thousands of separate draw commands).
+	// Two points (one segment) per packet, one colour per segment.
+	PackedVector2Array trail_points;
+	PackedVector2Array dot_points;
+	PackedColorArray colors;
+	trail_points.resize(count * 2);
+	dot_points.resize(count * 2);
+	colors.resize(count);
+
+	// Write through raw pointers: skips the per-element checks of set()
+	Vector2 *trail = trail_points.ptrw();
+	Vector2 *dot = dot_points.ptrw();
+	Color *col = colors.ptrw();
+
+	int i = 0;
+	server->for_each_active_packet([&](const PhononPacket &packet) {
+		if (i >= count) {
+			return; // safety: never write past the arrays
+		}
 		Color color = packet_color;
 		color.a = CLAMP(packet.intensity, min_alpha, 1.0f); // fade as the packet loses energy
+		col[i] = color;
 
-		if (trail_length > 0.0f) {
-			draw_line(packet.position - packet.direction * trail_length, packet.position, color, 2.0f);
-		}
-		draw_circle(packet.position, dot_radius, color);
+		// Trail: segment from behind the packet up to it
+		trail[i * 2] = packet.position - packet.direction * trail_length;
+		trail[i * 2 + 1] = packet.position;
+
+		// Dot: a short segment as long as it is wide, i.e. a small square facing the direction of travel
+		dot[i * 2] = packet.position - packet.direction * dot_radius;
+		dot[i * 2 + 1] = packet.position + packet.direction * dot_radius;
+
+		i++;
 	});
+
+	if (trail_length > 0.0f) {
+		draw_multiline_colors(trail_points, colors, 2.0f);
+	}
+	draw_multiline_colors(dot_points, colors, dot_radius * 2.0f);
 }
 
 // Yellow warning triangle in the editor if a scene has more than one PhononWorld2D
