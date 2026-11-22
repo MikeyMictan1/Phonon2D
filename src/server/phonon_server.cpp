@@ -109,19 +109,18 @@ void PhononServer::tick(double p_delta, PhysicsDirectSpaceState2D *p_space) {
 	// How far every packet tries to move this tick (all packets share one speed: it's a property of the medium)
 	const float step = speed_of_sound * static_cast<float>(p_delta);
 
-	// One query object reused for every ray this tick. Creating one per packet would mean
-	// thousands of allocations per frame.
+	// One query object reused for every ray this tick. Creating one per packet would mean thousands of allocations per frame.
 	Ref<PhysicsRayQueryParameters2D> query;
 	if (p_space != nullptr) {
 		query.instantiate();
 		query->set_collision_mask(collision_mask);
 	}
 
+	// Loop through every active packet in the pool
 	packet_pool.for_each_active([&](PhononPacket &packet) {
-		stats.active_packets++; // always counted: one add per packet, effectively free
+		stats.active_packets++;
 
-		// Cast a ray along the path the packet is about to take. Raycasting the whole step
-		// (instead of checking the end point) stops fast packets tunnelling through thin walls.
+		// Raycast along the path the packet is about to take. Raycasting the whole step (instead of the end point) stops fast packets going through thin walls
 		Dictionary hit;
 		if (p_space != nullptr) {
 			query->set_from(packet.position);
@@ -134,18 +133,14 @@ void PhononServer::tick(double p_delta, PhysicsDirectSpaceState2D *p_space) {
 				hit = p_space->intersect_ray(query);
 			}
 			else { hit = p_space->intersect_ray(query); }
-			
 		}
 
-		if (hit.is_empty()) {
-			advance_packet(packet, step);
-		} else {
-			bounce_packet(packet, hit);
-		}
+		// If we arent gonna hit any walls, then just advance the packet along its path. OTherwise we are, so bounce it against that surface
+		if (hit.is_empty()) { advance_packet(packet, step); }
+		else { bounce_packet(packet, hit); }
 
-		if (should_cull(packet)) {
-			packet_pool.recycle_packet(packet);
-		}
+		// Recylcing packets that need to die
+		if (should_cull(packet)) { packet_pool.recycle_packet(packet); }
 	});
 }
 
