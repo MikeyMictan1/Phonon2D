@@ -58,10 +58,16 @@ void PhononReceiver::_exit_tree() {
 	hits.clear(); // stale hits would carry over if the node is re-added later
 }
 
+// Drawn like a CollisionShape2D: translucent fill + solid outline. Always shown in the editor
+// (so you can see the area while placing it); in the running game only if debug_draw is on.
 void PhononReceiver::_draw() {
-	if (debug_draw) {
-		draw_arc(Vector2(0, 0), radius, 0.0f, Math_TAU, 48, debug_color, 1.0f);
+	if (!debug_draw && !Engine::get_singleton()->is_editor_hint()) {
+		return;
 	}
+	Color fill = debug_color;
+	fill.a *= 0.25f;
+	draw_circle(Vector2(0, 0), radius, fill);
+	draw_arc(Vector2(0, 0), radius, 0.0f, Math_TAU, 64, debug_color, 1.5f, true);
 }
 
 // ---- Called by the server ----

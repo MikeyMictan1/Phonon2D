@@ -66,6 +66,6 @@ protected:
 private:
 	float radius = 32.0f;
 	float window_length = 0.5f; // seconds of hits kept
-	bool debug_draw = true;     // draw the circle outline (editor and game)
+	bool debug_draw = true;     // draw the area in the running game (always drawn in the editor)
 	Color debug_color = Color(0.85f, 0.35f, 0.19f, 0.8f); // coral
 };
