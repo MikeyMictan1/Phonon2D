@@ -41,7 +41,8 @@ public:
 	bool is_profiling_enabled() const;
 
 	// Emitter API -----------------------------------------------------------------------
-	PhononPacket *spawn_packet(const Vector2 &p_position, const Vector2 &p_direction, float p_intensity, float p_frequency);
+	// p_band_mix: starting energy per band (should sum to 1). p_weight: loudness / packet_count. p_pitch: gameplay label in Hz.
+	PhononPacket *spawn_packet(const Vector2 &p_position, const Vector2 &p_direction, const float (&p_band_mix)[BAND_COUNT], float p_weight, float p_pitch);
 
 	// Receiver API -----------------------------------------------------------------------
 	void register_receiver(PhononReceiver *p_receiver);
@@ -96,7 +97,7 @@ private:
 	std::vector<PhononReceiver *> receivers; // non-owning: receivers are scene nodes, Godot owns them
 
 	float speed_of_sound = 343.0f; // units per second (decide: pixels or metres?)
-	float cull_threshold = 0.01f;  // packets below this intensity are recycled
+	float cull_threshold = 0.01f;  // packets whose total band energy (fraction surviving) drops below this are recycled
 	int max_bounces = 8;
 	float max_distance = 2000.0f;
 	uint32_t collision_mask = 1u << 4; // physics layer 5 ("phonon"): only these colliders affect sound

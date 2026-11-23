@@ -58,6 +58,8 @@ target_sources(${LIBNAME}
     src/pink_circle.cpp
     src/pink_circle.h
     src/server/phonon_packet.h
+    src/server/phonon_hit.h
+    src/server/phonon_hit_buffer.h
     src/server/phonon_packet_pool.cpp
     src/server/phonon_packet_pool.h
     src/server/phonon_server.cpp
@@ -76,6 +78,8 @@ target_sources(${LIBNAME}
     src/nodes/phonon_collision_shape_2d.h
     src/resources/phonon_material.cpp
     src/resources/phonon_material.h
+    src/resources/phonon_sensor_condition.cpp
+    src/resources/phonon_sensor_condition.h
     src/errors/error.cpp
     src/errors/error.h
 )

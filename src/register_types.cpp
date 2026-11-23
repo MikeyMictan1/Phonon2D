@@ -13,6 +13,7 @@
 #include "nodes/phonon_sensor_2d.h"
 #include "nodes/phonon_world_2d.h"
 #include "resources/phonon_material.h"
+#include "resources/phonon_sensor_condition.h"
 #include "server/phonon_server.h"
 
 using namespace godot;
@@ -29,6 +30,7 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level)
 	// Abstract: GDScript can't call PhononServer.new(); only this file creates it
 	GDREGISTER_ABSTRACT_CLASS(PhononServer);
 	GDREGISTER_CLASS(PhononMaterial);
+	GDREGISTER_CLASS(PhononSensorCondition);
 	GDREGISTER_CLASS(PhononEmitter2D);
 	GDREGISTER_ABSTRACT_CLASS(PhononReceiver);
 	GDREGISTER_CLASS(PhononListener2D);
