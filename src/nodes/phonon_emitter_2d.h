@@ -1,6 +1,7 @@
 #pragma once
 
 #include <godot_cpp/classes/audio_stream_player2d.hpp>
+#include <godot_cpp/variant/string_name.hpp>
 
 using namespace godot;
 
@@ -19,11 +20,14 @@ public:
 	void set_packet_count(int p_count);
 	int get_packet_count() const;
 
-	void set_intensity(float p_intensity);
-	float get_intensity() const;
+	void set_loudness(float p_loudness);
+	float get_loudness() const;
 
 	void set_frequency(float p_frequency);
 	float get_frequency() const;
+
+	void set_tag(const StringName &p_tag);
+	StringName get_tag() const;
 
 	void set_emit_on_ready(bool p_enabled);
 	bool get_emit_on_ready() const;
@@ -33,7 +37,8 @@ protected:
 
 private:
 	int packet_count = 180;    // packets per emission, spread evenly around 360 degrees
-	float intensity = 1.0f;    // starting energy of each packet
-	float frequency = 440.0f;  // Hz; carried by packets, not used by the simulation yet
+	float loudness = 1.0f;     // how loud the sound is: louder carries further (lives longer) and delivers more energy to receivers
+	float frequency = 440.0f;  // Hz; gameplay label carried by packets for sensor conditions, not used by the physics (yet)
+	StringName tag;            // what kind of sound, e.g. "footstep". Sensor conditions can filter on it
 	bool emit_on_ready = true; // fire once automatically when the scene starts
 };

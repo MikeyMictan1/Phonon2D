@@ -13,13 +13,17 @@ void PhononEmitter2D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_packet_count"), &PhononEmitter2D::get_packet_count);
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "packet_count", PROPERTY_HINT_RANGE, "1,4096,1"), "set_packet_count", "get_packet_count");
 
-	ClassDB::bind_method(D_METHOD("set_intensity", "intensity"), &PhononEmitter2D::set_intensity);
-	ClassDB::bind_method(D_METHOD("get_intensity"), &PhononEmitter2D::get_intensity);
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "intensity", PROPERTY_HINT_RANGE, "0,10,0.01,or_greater"), "set_intensity", "get_intensity");
+	ClassDB::bind_method(D_METHOD("set_loudness", "loudness"), &PhononEmitter2D::set_loudness);
+	ClassDB::bind_method(D_METHOD("get_loudness"), &PhononEmitter2D::get_loudness);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "loudness", PROPERTY_HINT_RANGE, "0,10,0.01,or_greater"), "set_loudness", "get_loudness");
 
 	ClassDB::bind_method(D_METHOD("set_frequency", "frequency"), &PhononEmitter2D::set_frequency);
 	ClassDB::bind_method(D_METHOD("get_frequency"), &PhononEmitter2D::get_frequency);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "frequency", PROPERTY_HINT_RANGE, "20,20000,1,suffix:Hz"), "set_frequency", "get_frequency");
+
+	ClassDB::bind_method(D_METHOD("set_tag", "tag"), &PhononEmitter2D::set_tag);
+	ClassDB::bind_method(D_METHOD("get_tag"), &PhononEmitter2D::get_tag);
+	ADD_PROPERTY(PropertyInfo(Variant::STRING_NAME, "tag"), "set_tag", "get_tag");
 
 	ClassDB::bind_method(D_METHOD("set_emit_on_ready", "enabled"), &PhononEmitter2D::set_emit_on_ready);
 	ClassDB::bind_method(D_METHOD("get_emit_on_ready"), &PhononEmitter2D::get_emit_on_ready);
@@ -39,6 +43,16 @@ void PhononEmitter2D::emit_phonons() {
 	PhononServer *server = PhononServer::get_singleton();
 	ERR_FAIL_NULL_MSG(server, "PhononServer singleton missing; is the extension loaded?");
 
+	// What every packet of this sound shares. Loudness is each packet's starting energy (so louder lives longer);
+	// each packet stands for an equal share of the wavefront when it hits a receiver.
+	PhononServer::EmissionInfo emission;
+	emission.id = server->new_emission_id();
+	emission.loudness = loudness;
+	emission.share = 1.0f / static_cast<float>(packet_count);
+	emission.frequency = frequency;
+	emission.tag = tag;
+	emission.source = ObjectID(get_instance_id());
+
 	const Vector2 origin = get_global_position();
 	const float angle_step = Math_TAU / static_cast<float>(packet_count);
 
@@ -46,7 +60,7 @@ void PhononEmitter2D::emit_phonons() {
 		const float angle = angle_step * static_cast<float>(i);
 		const Vector2 direction(Math::cos(angle), Math::sin(angle)); // already unit length
 
-		if (server->spawn_packet(origin, direction, intensity, frequency) == nullptr) {
+		if (server->spawn_packet(origin, direction, emission) == nullptr) {
 			return; // pool full: the pool has already logged it, no point trying the rest
 		}
 	}
@@ -55,11 +69,14 @@ void PhononEmitter2D::emit_phonons() {
 void PhononEmitter2D::set_packet_count(int p_count) { packet_count = CLAMP(p_count, 1, 4096); }
 int PhononEmitter2D::get_packet_count() const { return packet_count; }
 
-void PhononEmitter2D::set_intensity(float p_intensity) { intensity = MAX(p_intensity, 0.0f); }
-float PhononEmitter2D::get_intensity() const { return intensity; }
+void PhononEmitter2D::set_loudness(float p_loudness) { loudness = MAX(p_loudness, 0.0f); }
+float PhononEmitter2D::get_loudness() const { return loudness; }
 
 void PhononEmitter2D::set_frequency(float p_frequency) { frequency = MAX(p_frequency, 0.0f); }
 float PhononEmitter2D::get_frequency() const { return frequency; }
+
+void PhononEmitter2D::set_tag(const StringName &p_tag) { tag = p_tag; }
+StringName PhononEmitter2D::get_tag() const { return tag; }
 
 void PhononEmitter2D::set_emit_on_ready(bool p_enabled) { emit_on_ready = p_enabled; }
 bool PhononEmitter2D::get_emit_on_ready() const { return emit_on_ready; }

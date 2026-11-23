@@ -1,0 +1,9 @@
+[gd_resource type="PhononSensorCondition" format=3 uid="uid://5ojubf5gw8yf"]
+
+[sub_resource type="PhononMinPackets" id="PhononMinPackets_t8i2d"]
+count = 100
+
+[sub_resource type="PhononFrequency" id="PhononFrequency_nyfck"]
+
+[resource]
+rules = Array[PhononRule]([SubResource("PhononMinPackets_t8i2d"), SubResource("PhononFrequency_nyfck")])

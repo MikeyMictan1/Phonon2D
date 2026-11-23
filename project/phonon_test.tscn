@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://bb5iymlop2q7c"]
 
 [ext_resource type="Script" uid="uid://bn3sf40xu07t5" path="res://phonon_test.gd" id="1_test"]
+[ext_resource type="PhononSensorCondition" uid="uid://5ojubf5gw8yf" path="res://condition1.tres" id="2_0tkop"]
 
 [sub_resource type="RectangleShape2D" id="Rect_horizontal"]
 size = Vector2(1152, 20)
@@ -104,6 +105,7 @@ color = Color(0.53, 0.53, 0.5, 1)
 
 [node name="PhononEmitter2D" type="PhononEmitter2D" parent="." unique_id=216835246]
 packet_count = 4096
+loudness = 0.1
 position = Vector2(350, 324)
 
 [node name="PhononWorld2D" type="PhononWorld2D" parent="." unique_id=1427631798]
@@ -116,3 +118,25 @@ offset_left = 32.0
 offset_top = 28.0
 offset_right = 400.0
 offset_bottom = 80.0
+
+[node name="Label2" type="Label" parent="." unique_id=573929885]
+offset_left = 753.0
+offset_top = 30.0
+offset_right = 1121.0
+offset_bottom = 82.0
+
+[node name="Label3" type="Label" parent="." unique_id=1342221147]
+offset_left = 751.0
+offset_top = 117.0
+offset_right = 1119.0
+offset_bottom = 169.0
+
+[node name="PhononSensor2D" type="PhononSensor2D" parent="." unique_id=862836276]
+conditions = Array[PhononSensorCondition]([ExtResource("2_0tkop")])
+radius = 49.5
+debug_color = Color(8.663535e-07, 0.5861948, 0.7267994, 0.8)
+position = Vector2(150, 146)
+scale = Vector2(2, 2)
+
+[connection signal="released" from="PhononSensor2D" to="." method="_on_phonon_sensor_2d_released"]
+[connection signal="triggered" from="PhononSensor2D" to="." method="_on_phonon_sensor_2d_triggered"]
