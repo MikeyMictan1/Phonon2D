@@ -48,6 +48,7 @@ void PhononServer::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("get_active_packet_count"), &PhononServer::get_active_packet_count);
 	ClassDB::bind_method(D_METHOD("clear_packets"), &PhononServer::clear_packets);
+	ClassDB::bind_method(D_METHOD("get_sim_time"), &PhononServer::get_sim_time);
 
 	ClassDB::bind_method(D_METHOD("set_air_absorption", "absorption"), &PhononServer::set_air_absorption);
 	ClassDB::bind_method(D_METHOD("get_air_absorption"), &PhononServer::get_air_absorption);
@@ -73,7 +74,15 @@ PhononServer::~PhononServer() {
 
 // ---- Emitter API ----
 
-PhononPacket *PhononServer::spawn_packet(const Vector2 &p_position, const Vector2 &p_direction, const float (&p_band_mix)[BAND_COUNT], float p_weight, float p_pitch) {
+uint32_t PhononServer::new_emission_id() {
+	const uint32_t id = next_emission_id++;
+	if (next_emission_id == 0) {
+		next_emission_id = 1; // wrapped after ~4 billion emissions: skip 0, it means "none"
+	}
+	return id;
+}
+
+PhononPacket *PhononServer::spawn_packet(const Vector2 &p_position, const Vector2 &p_direction, const float (&p_band_mix)[BAND_COUNT], const EmissionInfo &p_emission) {
 	PhononPacket *packet = packet_pool.request_packet();
 	if (packet == nullptr) {
 		return nullptr; // pool full: drop the packet (pool already logged it)
@@ -84,10 +93,15 @@ PhononPacket *PhononServer::spawn_packet(const Vector2 &p_position, const Vector
 	for (int b = 0; b < BAND_COUNT; b++) {
 		packet->energy[b] = p_band_mix[b];
 	}
-	packet->weight = p_weight;
-	packet->pitch = p_pitch;
+	packet->emission_id = p_emission.id;
+	packet->weight = p_emission.weight;
+	packet->pitch = p_emission.pitch;
+	packet->tag = p_emission.tag;
+	packet->source = p_emission.source;
 	return packet;
 }
+
+double PhononServer::get_sim_time() const { return sim_time; }
 
 // ---- Receiver API ----
 
@@ -109,8 +123,18 @@ void PhononServer::tick(double p_delta, PhysicsDirectSpaceState2D *p_space) {
 	stats = PhononStats{};
 	ScopeTimer tick_timer(stats.tick_ns);
 
+	// Advance the clock first, so hits in this tick are stamped with the time at the end of the tick
+	sim_time += p_delta;
+
 	// How far every packet tries to move this tick (all packets share one speed: it's a property of the medium)
 	const float step = speed_of_sound * static_cast<float>(p_delta);
+
+	// Snapshot receiver circles once per tick (positions can change between ticks, not during one)
+	receiver_circles.clear();
+	for (PhononReceiver *receiver : receivers) {
+		const float r = receiver->get_radius();
+		receiver_circles.push_back({ receiver, receiver->get_global_position(), r * r });
+	}
 
 	// One query object reused for every ray this tick. Creating one per packet would mean thousands of allocations per frame.
 	Ref<PhysicsRayQueryParameters2D> query;
@@ -138,13 +162,72 @@ void PhononServer::tick(double p_delta, PhysicsDirectSpaceState2D *p_space) {
 			else { hit = p_space->intersect_ray(query); }
 		}
 
+		// Snapshot before moving: detection needs where it started and its energy before the wall/air took a cut
+		StepStart start;
+		if (!receiver_circles.empty()) {
+			start.position = packet.position;
+			start.direction = packet.direction;
+			for (int b = 0; b < BAND_COUNT; b++) {
+				start.energy[b] = packet.energy[b];
+			}
+			start.bounce_count = packet.bounce_count;
+		}
+
 		// If we arent gonna hit any walls, then just advance the packet along its path. OTherwise we are, so bounce it against that surface
 		if (hit.is_empty()) { advance_packet(packet, step); }
 		else { bounce_packet(packet, hit); }
 
+		// Did this step's path cross into any receiver?
+		if (!receiver_circles.empty()) { detect_receivers(packet, start); }
+
 		// Recylcing packets that need to die
 		if (should_cull(packet)) { packet_pool.recycle_packet(packet); }
 	});
+
+	// Every hit for this tick is in: let receivers drop old hits and (later) check conditions / set volumes.
+	// Loops the snapshot, not `receivers`: end_tick may emit signals whose handlers add/remove receivers,
+	// which would reshuffle `receivers` mid-loop. (queue_free() is deferred, so snapshot pointers stay valid.)
+	const float now = static_cast<float>(sim_time);
+	for (const ReceiverCircle &circle : receiver_circles) {
+		circle.receiver->end_tick(now);
+	}
+}
+
+// Entry-only test: a hit counts when the packet starts the step OUTSIDE a circle and its path reaches inside.
+// A packet sitting inside the circle for several ticks is therefore counted once, not once per tick.
+void PhononServer::detect_receivers(const PhononPacket &p_packet, const StepStart &p_start) {
+	const Vector2 start = p_start.position;
+	const Vector2 path = p_packet.position - start;
+	const float path_len_sq = path.length_squared();
+
+	for (const ReceiverCircle &circle : receiver_circles) {
+		const Vector2 to_centre = circle.centre - start;
+		if (to_centre.length_squared() <= circle.radius_sq) {
+			continue; // started inside: already counted when it entered
+		}
+
+		// Closest point on the segment to the centre: project onto the path, clamp to the segment's ends
+		float t = 0.0f;
+		if (path_len_sq > 0.0f) {
+			t = CLAMP(to_centre.dot(path) / path_len_sq, 0.0f, 1.0f);
+		}
+		const Vector2 closest = start + path * t;
+		if (closest.distance_squared_to(circle.centre) > circle.radius_sq) {
+			continue; // passed by without touching
+		}
+
+		PhononHit hit;
+		hit.time = static_cast<float>(sim_time);
+		for (int b = 0; b < BAND_COUNT; b++) {
+			hit.energy[b] = p_packet.weight * p_start.energy[b]; // band fraction * share of loudness = real energy
+		}
+		hit.pitch = p_packet.pitch;
+		hit.direction = p_start.direction;
+		hit.bounces = p_start.bounce_count;
+		hit.emission_id = p_packet.emission_id;
+		hit.tag = p_packet.tag;
+		circle.receiver->add_hit(hit);
+	}
 }
 
 // No collision: move the full step

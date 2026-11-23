@@ -1,6 +1,7 @@
 #pragma once
 
 #include <godot_cpp/classes/audio_stream_player2d.hpp>
+#include <godot_cpp/variant/string_name.hpp>
 
 using namespace godot;
 
@@ -34,6 +35,9 @@ public:
 	void set_pitch(float p_pitch);
 	float get_pitch() const;
 
+	void set_tag(const StringName &p_tag);
+	StringName get_tag() const;
+
 	void set_emit_on_ready(bool p_enabled);
 	bool get_emit_on_ready() const;
 
@@ -51,5 +55,6 @@ private:
 	float band_high = 1.0f;
 
 	float pitch = 440.0f;      // Hz; gameplay label carried by packets for sensor conditions, not used by the physics
+	StringName tag;            // what kind of sound, e.g. "footstep". Sensor conditions can filter on it
 	bool emit_on_ready = true; // fire once automatically when the scene starts
 };

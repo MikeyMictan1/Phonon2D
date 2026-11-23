@@ -3,8 +3,8 @@ extends Node2D
 ## Space: emit again from the emitter. Left click: move the emitter to the mouse and emit.
 
 @onready var emitter: PhononEmitter2D = $PhononEmitter2D
+@onready var sensor: PhononSensor2D = $PhononSensor2D
 @onready var label: Label = $Label
-
 
 func _ready() -> void:
 	# Debugging
@@ -30,3 +30,5 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _process(_delta: float) -> void:
 	label.text = "Active packets: %d\nSpace: emit   Click: emit at mouse" % PhononServer.get_active_packet_count()
+	print(sensor.get_hit_count())
+	

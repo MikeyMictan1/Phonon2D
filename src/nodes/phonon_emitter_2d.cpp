@@ -36,6 +36,10 @@ void PhononEmitter2D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_pitch"), &PhononEmitter2D::get_pitch);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "pitch", PROPERTY_HINT_RANGE, "20,20000,1,suffix:Hz"), "set_pitch", "get_pitch");
 
+	ClassDB::bind_method(D_METHOD("set_tag", "tag"), &PhononEmitter2D::set_tag);
+	ClassDB::bind_method(D_METHOD("get_tag"), &PhononEmitter2D::get_tag);
+	ADD_PROPERTY(PropertyInfo(Variant::STRING_NAME, "tag"), "set_tag", "get_tag");
+
 	ClassDB::bind_method(D_METHOD("set_emit_on_ready", "enabled"), &PhononEmitter2D::set_emit_on_ready);
 	ClassDB::bind_method(D_METHOD("get_emit_on_ready"), &PhononEmitter2D::get_emit_on_ready);
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "emit_on_ready"), "set_emit_on_ready", "get_emit_on_ready");
@@ -59,8 +63,13 @@ void PhononEmitter2D::emit_phonons() {
 	ERR_FAIL_COND_MSG(mix_total <= 0.0f, "PhononEmitter2D: band_low, band_mid and band_high are all 0, so there is no sound to emit.");
 	const float band_mix[BAND_COUNT] = { band_low / mix_total, band_mid / mix_total, band_high / mix_total };
 
-	// Each packet carries an equal share of the emission's loudness
-	const float weight = loudness / static_cast<float>(packet_count);
+	// What every packet of this sound shares. Each packet carries an equal share of the loudness (weight).
+	PhononServer::EmissionInfo emission;
+	emission.id = server->new_emission_id();
+	emission.weight = loudness / static_cast<float>(packet_count);
+	emission.pitch = pitch;
+	emission.tag = tag;
+	emission.source = ObjectID(get_instance_id());
 
 	const Vector2 origin = get_global_position();
 	const float angle_step = Math_TAU / static_cast<float>(packet_count);
@@ -69,7 +78,7 @@ void PhononEmitter2D::emit_phonons() {
 		const float angle = angle_step * static_cast<float>(i);
 		const Vector2 direction(Math::cos(angle), Math::sin(angle)); // already unit length
 
-		if (server->spawn_packet(origin, direction, band_mix, weight, pitch) == nullptr) {
+		if (server->spawn_packet(origin, direction, band_mix, emission) == nullptr) {
 			return; // pool full: the pool has already logged it, no point trying the rest
 		}
 	}
@@ -92,6 +101,9 @@ float PhononEmitter2D::get_band_high() const { return band_high; }
 
 void PhononEmitter2D::set_pitch(float p_pitch) { pitch = MAX(p_pitch, 0.0f); }
 float PhononEmitter2D::get_pitch() const { return pitch; }
+
+void PhononEmitter2D::set_tag(const StringName &p_tag) { tag = p_tag; }
+StringName PhononEmitter2D::get_tag() const { return tag; }
 
 void PhononEmitter2D::set_emit_on_ready(bool p_enabled) { emit_on_ready = p_enabled; }
 bool PhononEmitter2D::get_emit_on_ready() const { return emit_on_ready; }

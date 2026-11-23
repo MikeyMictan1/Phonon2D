@@ -41,8 +41,23 @@ public:
 	bool is_profiling_enabled() const;
 
 	// Emitter API -----------------------------------------------------------------------
-	// p_band_mix: starting energy per band (should sum to 1). p_weight: loudness / packet_count. p_pitch: gameplay label in Hz.
-	PhononPacket *spawn_packet(const Vector2 &p_position, const Vector2 &p_direction, const float (&p_band_mix)[BAND_COUNT], float p_weight, float p_pitch);
+	// Everything shared by every packet of one emit_phonons() call
+	struct EmissionInfo {
+		uint32_t id = 0;     // from new_emission_id()
+		float weight = 0.0f; // loudness / packet_count
+		float pitch = 0.0f;  // gameplay label in Hz
+		StringName tag;
+		ObjectID source;
+	};
+
+	// Call once per emit, before spawning its packets. Unique id so receivers can group hits by sound.
+	uint32_t new_emission_id();
+
+	// p_band_mix: starting energy per band (should sum to 1). p_emission: copied into the packet.
+	PhononPacket *spawn_packet(const Vector2 &p_position, const Vector2 &p_direction, const float (&p_band_mix)[BAND_COUNT], const EmissionInfo &p_emission);
+
+	// Seconds simulated so far (sum of every tick's delta). Hits are timestamped with this. Bound to GDScript.
+	double get_sim_time() const;
 
 	// Receiver API -----------------------------------------------------------------------
 	void register_receiver(PhononReceiver *p_receiver);
@@ -96,6 +111,18 @@ private:
 	PhononPacketPool packet_pool;
 	std::vector<PhononReceiver *> receivers; // non-owning: receivers are scene nodes, Godot owns them
 
+	uint32_t next_emission_id = 1; // 0 means "no emission"
+
+	double sim_time = 0.0; // double: a float loses millisecond precision after a few hours
+
+	// Per-tick snapshot of each receiver's circle, so the packet loop doesn't call into Godot for every packet
+	struct ReceiverCircle {
+		PhononReceiver *receiver;
+		Vector2 centre;
+		float radius_sq;
+	};
+	std::vector<ReceiverCircle> receiver_circles; // member, not a local: reused every tick, no allocation
+
 	float speed_of_sound = 343.0f; // units per second (decide: pixels or metres?)
 	float cull_threshold = 0.01f;  // packets whose total band energy (fraction surviving) drops below this are recycled
 	int max_bounces = 8;
@@ -110,4 +137,15 @@ private:
 	void bounce_packet(PhononPacket &p_packet, const Dictionary &p_hit);
 	float get_surface_absorption(Object *p_collider, int p_shape_index) const;
 	bool should_cull(const PhononPacket &p_packet) const;
+
+	// What detection needs from a packet as it was at the START of this tick (before moving/absorbing).
+	// Plain numbers only: copying the whole packet every tick would also copy its StringName tag (a refcount update).
+	struct StepStart {
+		Vector2 position;
+		Vector2 direction;
+		float energy[BAND_COUNT];
+		int bounce_count;
+	};
+	// p_packet: the packet after moving (for its per-emission data). p_start: snapshot from before the move.
+	void detect_receivers(const PhononPacket &p_packet, const StepStart &p_start);
 };
