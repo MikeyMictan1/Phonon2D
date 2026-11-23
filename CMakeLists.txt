@@ -78,6 +78,8 @@ target_sources(${LIBNAME}
     src/nodes/phonon_collision_shape_2d.h
     src/resources/phonon_material.cpp
     src/resources/phonon_material.h
+    src/resources/phonon_rules.cpp
+    src/resources/phonon_rules.h
     src/resources/phonon_sensor_condition.cpp
     src/resources/phonon_sensor_condition.h
     src/errors/error.cpp

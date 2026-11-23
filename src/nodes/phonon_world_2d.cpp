@@ -105,7 +105,7 @@ void PhononWorld2D::_draw() {
 			return; // safety: never write past the arrays
 		}
 		Color color = packet_color;
-		color.a = CLAMP(packet.total_energy(), min_alpha, 1.0f); // fade as the packet loses energy
+		color.a = CLAMP(packet.energy, min_alpha, 1.0f); // fade as the packet loses energy; quiet sounds look faint
 		col[i] = color;
 
 		// Trail: segment from behind the packet up to it

@@ -88,7 +88,7 @@ float PhononReceiver::get_diameter() const {
 
 float PhononReceiver::get_window_energy() const {
 	float total = 0.0f;
-	hits.for_each([&](const PhononHit &hit) { total += hit.total_energy(); });
+	hits.for_each([&](const PhononHit &hit) { total += hit.energy; });
 	return total / get_diameter();
 }
 

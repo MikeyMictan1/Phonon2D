@@ -44,8 +44,9 @@ public:
 	// Everything shared by every packet of one emit_phonons() call
 	struct EmissionInfo {
 		uint32_t id = 0;     // from new_emission_id()
-		float weight = 0.0f; // loudness / packet_count
-		float pitch = 0.0f;  // gameplay label in Hz
+		float loudness = 0.0f;  // the emitter's loudness: each packet's starting energy
+		float share = 0.0f;     // 1 / packet_count
+		float frequency = 0.0f; // gameplay label in Hz
 		StringName tag;
 		ObjectID source;
 	};
@@ -53,8 +54,8 @@ public:
 	// Call once per emit, before spawning its packets. Unique id so receivers can group hits by sound.
 	uint32_t new_emission_id();
 
-	// p_band_mix: starting energy per band (should sum to 1). p_emission: copied into the packet.
-	PhononPacket *spawn_packet(const Vector2 &p_position, const Vector2 &p_direction, const float (&p_band_mix)[BAND_COUNT], const EmissionInfo &p_emission);
+	// p_emission is copied into the packet
+	PhononPacket *spawn_packet(const Vector2 &p_position, const Vector2 &p_direction, const EmissionInfo &p_emission);
 
 	// Seconds simulated so far (sum of every tick's delta). Hits are timestamped with this. Bound to GDScript.
 	double get_sim_time() const;
@@ -124,7 +125,7 @@ private:
 	std::vector<ReceiverCircle> receiver_circles; // member, not a local: reused every tick, no allocation
 
 	float speed_of_sound = 343.0f; // units per second (decide: pixels or metres?)
-	float cull_threshold = 0.01f;  // packets whose total band energy (fraction surviving) drops below this are recycled
+	float cull_threshold = 0.01f;  // packets whose energy drops below this are recycled
 	int max_bounces = 8;
 	float max_distance = 2000.0f;
 	uint32_t collision_mask = 1u << 4; // physics layer 5 ("phonon"): only these colliders affect sound
@@ -143,7 +144,7 @@ private:
 	struct StepStart {
 		Vector2 position;
 		Vector2 direction;
-		float energy[BAND_COUNT];
+		float energy;
 		int bounce_count;
 	};
 	// p_packet: the packet after moving (for its per-emission data). p_start: snapshot from before the move.

@@ -5,6 +5,8 @@ extends Node2D
 @onready var emitter: PhononEmitter2D = $PhononEmitter2D
 @onready var sensor: PhononSensor2D = $PhononSensor2D
 @onready var label: Label = $Label
+@onready var label2: Label = $Label2
+@onready var label3: Label = $Label3
 
 func _ready() -> void:
 	# Debugging
@@ -13,7 +15,6 @@ func _ready() -> void:
 	Performance.add_custom_monitor("Phonon/active_packets", func(): return PhononServer.get_stats().active_packets)
 	
 	print("PhononServer.speed_of_sound = ", PhononServer.speed_of_sound)
-	
 	
 
 
@@ -30,5 +31,11 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _process(_delta: float) -> void:
 	label.text = "Active packets: %d\nSpace: emit   Click: emit at mouse" % PhononServer.get_active_packet_count()
-	print(sensor.get_hit_count())
-	
+	label2.text = "Sensor packets: %d" % sensor.get_hit_count()
+
+func _on_phonon_sensor_2d_triggered(condition: PhononSensorCondition, energy: float) -> void:
+	label3.text = "Sensor detection TRIGGERED"
+	print("trigger!")
+
+func _on_phonon_sensor_2d_released(condition: PhononSensorCondition) -> void:
+	label3.text = "Sensor detection"

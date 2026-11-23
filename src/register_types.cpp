@@ -13,6 +13,7 @@
 #include "nodes/phonon_sensor_2d.h"
 #include "nodes/phonon_world_2d.h"
 #include "resources/phonon_material.h"
+#include "resources/phonon_rules.h"
 #include "resources/phonon_sensor_condition.h"
 #include "server/phonon_server.h"
 
@@ -30,6 +31,13 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level)
 	// Abstract: GDScript can't call PhononServer.new(); only this file creates it
 	GDREGISTER_ABSTRACT_CLASS(PhononServer);
 	GDREGISTER_CLASS(PhononMaterial);
+	// Rules before the condition that lists them; abstract base first, so the inspector dropdown lists only the concrete rules
+	GDREGISTER_ABSTRACT_CLASS(PhononRule);
+	GDREGISTER_CLASS(PhononMinPackets);
+	GDREGISTER_CLASS(PhononMinEnergy);
+	GDREGISTER_CLASS(PhononFrequency);
+	GDREGISTER_CLASS(PhononSourceTag);
+	GDREGISTER_CLASS(PhononDirectOnly);
 	GDREGISTER_CLASS(PhononSensorCondition);
 	GDREGISTER_CLASS(PhononEmitter2D);
 	GDREGISTER_ABSTRACT_CLASS(PhononReceiver);

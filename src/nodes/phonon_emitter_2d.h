@@ -23,17 +23,8 @@ public:
 	void set_loudness(float p_loudness);
 	float get_loudness() const;
 
-	void set_band_low(float p_value);
-	float get_band_low() const;
-
-	void set_band_mid(float p_value);
-	float get_band_mid() const;
-
-	void set_band_high(float p_value);
-	float get_band_high() const;
-
-	void set_pitch(float p_pitch);
-	float get_pitch() const;
+	void set_frequency(float p_frequency);
+	float get_frequency() const;
 
 	void set_tag(const StringName &p_tag);
 	StringName get_tag() const;
@@ -46,15 +37,8 @@ protected:
 
 private:
 	int packet_count = 180;    // packets per emission, spread evenly around 360 degrees
-	float loudness = 1.0f;     // total energy of one emission, shared across all packets (each gets loudness / packet_count)
-
-	// Band mix: how the sound's energy is spread across low/mid/high. Relative amounts:
-	// normalised to sum to 1 at emit time, so (2, 1, 1) and (0.5, 0.25, 0.25) are the same sound.
-	float band_low = 1.0f;
-	float band_mid = 1.0f;
-	float band_high = 1.0f;
-
-	float pitch = 440.0f;      // Hz; gameplay label carried by packets for sensor conditions, not used by the physics
+	float loudness = 1.0f;     // how loud the sound is: louder carries further (lives longer) and delivers more energy to receivers
+	float frequency = 440.0f;  // Hz; gameplay label carried by packets for sensor conditions, not used by the physics (yet)
 	StringName tag;            // what kind of sound, e.g. "footstep". Sensor conditions can filter on it
 	bool emit_on_ready = true; // fire once automatically when the scene starts
 };

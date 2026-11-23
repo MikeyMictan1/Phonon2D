@@ -16,7 +16,7 @@ public:
 		NONE,
 	};
 
-	// Fraction of a packet's energy lost per bounce (applied to every band for now): 0 = perfect mirror, 1 = absorbs everything
+	// Fraction of a packet's energy lost per bounce: 0 = perfect mirror, 1 = absorbs everything
 	void set_absorption(float p_absorption);
 	float get_absorption() const;
 

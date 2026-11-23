@@ -66,7 +66,7 @@ void PhononSensor2D::end_tick(float p_now) {
 				state.cooldown_until = p_now + condition->get_cooldown();
 				emit_signal("triggered", condition, energy);
 			}
-		} else if (condition->should_release(energy)) {
+		} else if (condition->should_release(energy, packets)) {
 			state.triggered = false;
 			emit_signal("released", condition);
 		}
@@ -78,7 +78,7 @@ void PhononSensor2D::measure(const PhononSensorCondition &p_condition, float &r_
 	int packets = 0;
 	hits.for_each([&](const PhononHit &hit) {
 		if (p_condition.accepts(hit)) {
-			total += p_condition.get_hit_energy(hit);
+			total += hit.energy;
 			packets++;
 		}
 	});

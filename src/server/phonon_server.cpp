@@ -82,7 +82,7 @@ uint32_t PhononServer::new_emission_id() {
 	return id;
 }
 
-PhononPacket *PhononServer::spawn_packet(const Vector2 &p_position, const Vector2 &p_direction, const float (&p_band_mix)[BAND_COUNT], const EmissionInfo &p_emission) {
+PhononPacket *PhononServer::spawn_packet(const Vector2 &p_position, const Vector2 &p_direction, const EmissionInfo &p_emission) {
 	PhononPacket *packet = packet_pool.request_packet();
 	if (packet == nullptr) {
 		return nullptr; // pool full: drop the packet (pool already logged it)
@@ -90,12 +90,10 @@ PhononPacket *PhononServer::spawn_packet(const Vector2 &p_position, const Vector
 
 	packet->position = p_position;
 	packet->direction = p_direction.normalized(); // direction is always a unit vector
-	for (int b = 0; b < BAND_COUNT; b++) {
-		packet->energy[b] = p_band_mix[b];
-	}
+	packet->energy = p_emission.loudness; // starts as loud as the emitter, walls and air drain it
 	packet->emission_id = p_emission.id;
-	packet->weight = p_emission.weight;
-	packet->pitch = p_emission.pitch;
+	packet->share = p_emission.share;
+	packet->frequency = p_emission.frequency;
 	packet->tag = p_emission.tag;
 	packet->source = p_emission.source;
 	return packet;
@@ -167,9 +165,7 @@ void PhononServer::tick(double p_delta, PhysicsDirectSpaceState2D *p_space) {
 		if (!receiver_circles.empty()) {
 			start.position = packet.position;
 			start.direction = packet.direction;
-			for (int b = 0; b < BAND_COUNT; b++) {
-				start.energy[b] = packet.energy[b];
-			}
+			start.energy = packet.energy;
 			start.bounce_count = packet.bounce_count;
 		}
 
@@ -218,10 +214,8 @@ void PhononServer::detect_receivers(const PhononPacket &p_packet, const StepStar
 
 		PhononHit hit;
 		hit.time = static_cast<float>(sim_time);
-		for (int b = 0; b < BAND_COUNT; b++) {
-			hit.energy[b] = p_packet.weight * p_start.energy[b]; // band fraction * share of loudness = real energy
-		}
-		hit.pitch = p_packet.pitch;
+		hit.energy = p_start.energy * p_packet.share; // energy left, split across the wavefront's packets
+		hit.frequency = p_packet.frequency;
 		hit.direction = p_start.direction;
 		hit.bounces = p_start.bounce_count;
 		hit.emission_id = p_packet.emission_id;
@@ -238,12 +232,8 @@ void PhononServer::advance_packet(PhononPacket &p_packet, float p_distance) {
 }
 
 // Air absorption, slightly reduce energy based on distance travelled (Beer-Lambert formula applied to sound).
-// One rate for every band for now; per-band air absorption (highs die faster) comes later.
 void PhononServer::apply_air_absorption(PhononPacket &p_packet, float p_distance) {
-	const float factor = std::exp(-air_absorption * p_distance); // same for every band, so compute once
-	for (int b = 0; b < BAND_COUNT; b++) {
-		p_packet.energy[b] *= factor;
-	}
+	p_packet.energy *= std::exp(-air_absorption * p_distance);
 }
 
 // Collision: move to the hit point, reflect off the surface, lose energy to the material.
@@ -257,11 +247,7 @@ void PhononServer::bounce_packet(PhononPacket &p_packet, const Dictionary &p_hit
 	p_packet.distance_travelled += distance;
 	p_packet.position = hit_position + normal * BOUNCE_OFFSET; // nudge off the wall
 	p_packet.direction = p_packet.direction.bounce(normal);    // d' = d - 2(d.n)n
-	// One absorption value for every band for now; per-band material absorption comes later
-	const float reflected = 1.0f - get_surface_absorption(collider, shape_index);
-	for (int b = 0; b < BAND_COUNT; b++) {
-		p_packet.energy[b] *= reflected;
-	}
+	p_packet.energy *= 1.0f - get_surface_absorption(collider, shape_index); // the material keeps its share
 	apply_air_absorption(p_packet, distance);
 	p_packet.bounce_count++;
 }
@@ -284,7 +270,7 @@ float PhononServer::get_surface_absorption(Object *p_collider, int p_shape_index
 }
 
 bool PhononServer::should_cull(const PhononPacket &p_packet) const {
-	return p_packet.total_energy() < cull_threshold
+	return p_packet.energy < cull_threshold
 		|| p_packet.bounce_count > max_bounces
 		|| p_packet.distance_travelled >= max_distance;
 }
