@@ -1,5 +1,6 @@
 #pragma once
 
+#include <godot_cpp/core/object_id.hpp>
 #include <godot_cpp/variant/string_name.hpp>
 #include <godot_cpp/variant/vector2.hpp>
 
@@ -15,4 +16,5 @@ struct PhononHit {
     int bounces = 0;                                 // 0 = arrived directly from the emitter
     uint32_t emission_id = 0;                        // which emit() call it belongs to ("sound #42")
     godot::StringName tag;                           // emitter's tag (e.g. "footstep")
+    godot::ObjectID source;                          // the emitter node; the listener asks it which stream to play
 };

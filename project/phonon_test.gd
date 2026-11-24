@@ -4,6 +4,7 @@ extends Node2D
 
 @onready var emitter: PhononEmitter2D = $PhononEmitter2D
 @onready var sensor: PhononSensor2D = $PhononSensor2D
+@onready var listener: PhononListener2D = $PhononListener2D
 @onready var label: Label = $Label
 @onready var label2: Label = $Label2
 @onready var label3: Label = $Label3
@@ -20,18 +21,18 @@ func _ready() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action("ui_accept"):
-		emitter.emit_phonons()
+		emitter.play()
 
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		emitter.global_position = event.position
-		emitter.emit_phonons()
+		emitter.play()
 	
 
 
 
 func _process(_delta: float) -> void:
 	label.text = "Active packets: %d\nSpace: emit   Click: emit at mouse" % PhononServer.get_active_packet_count()
-	label2.text = "Sensor packets: %d" % sensor.get_hit_count()
+	label2.text = "Sensor packets: %d\nListener voices playing: %d" % [sensor.get_hit_count(), listener.get_playing_voice_count()]
 
 func _on_phonon_sensor_2d_triggered(condition: PhononSensorCondition, energy: float) -> void:
 	label3.text = "Sensor detection TRIGGERED"

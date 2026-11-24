@@ -7,7 +7,11 @@
 #include <godot_cpp/core/math.hpp>
 
 void PhononEmitter2D::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("emit_phonons"), &PhononEmitter2D::emit_phonons);
+	ClassDB::bind_method(D_METHOD("play"), &PhononEmitter2D::play);
+
+	ClassDB::bind_method(D_METHOD("set_stream", "stream"), &PhononEmitter2D::set_stream);
+	ClassDB::bind_method(D_METHOD("get_stream"), &PhononEmitter2D::get_stream);
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "stream", PROPERTY_HINT_RESOURCE_TYPE, "AudioStream"), "set_stream", "get_stream");
 
 	ClassDB::bind_method(D_METHOD("set_packet_count", "count"), &PhononEmitter2D::set_packet_count);
 	ClassDB::bind_method(D_METHOD("get_packet_count"), &PhononEmitter2D::get_packet_count);
@@ -25,21 +29,21 @@ void PhononEmitter2D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_tag"), &PhononEmitter2D::get_tag);
 	ADD_PROPERTY(PropertyInfo(Variant::STRING_NAME, "tag"), "set_tag", "get_tag");
 
-	ClassDB::bind_method(D_METHOD("set_emit_on_ready", "enabled"), &PhononEmitter2D::set_emit_on_ready);
-	ClassDB::bind_method(D_METHOD("get_emit_on_ready"), &PhononEmitter2D::get_emit_on_ready);
-	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "emit_on_ready"), "set_emit_on_ready", "get_emit_on_ready");
+	ClassDB::bind_method(D_METHOD("set_autoplay", "enabled"), &PhononEmitter2D::set_autoplay);
+	ClassDB::bind_method(D_METHOD("get_autoplay"), &PhononEmitter2D::get_autoplay);
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "autoplay"), "set_autoplay", "get_autoplay");
 }
 
 void PhononEmitter2D::_ready() {
 	if (Engine::get_singleton()->is_editor_hint()) {
 		return; // don't spawn packets while editing the scene
 	}
-	if (emit_on_ready) {
-		emit_phonons();
+	if (autoplay) {
+		play();
 	}
 }
 
-void PhononEmitter2D::emit_phonons() {
+void PhononEmitter2D::play() {
 	PhononServer *server = PhononServer::get_singleton();
 	ERR_FAIL_NULL_MSG(server, "PhononServer singleton missing; is the extension loaded?");
 
@@ -66,6 +70,9 @@ void PhononEmitter2D::emit_phonons() {
 	}
 }
 
+void PhononEmitter2D::set_stream(const Ref<AudioStream> &p_stream) { stream = p_stream; }
+Ref<AudioStream> PhononEmitter2D::get_stream() const { return stream; }
+
 void PhononEmitter2D::set_packet_count(int p_count) { packet_count = CLAMP(p_count, 1, 4096); }
 int PhononEmitter2D::get_packet_count() const { return packet_count; }
 
@@ -78,5 +85,5 @@ float PhononEmitter2D::get_frequency() const { return frequency; }
 void PhononEmitter2D::set_tag(const StringName &p_tag) { tag = p_tag; }
 StringName PhononEmitter2D::get_tag() const { return tag; }
 
-void PhononEmitter2D::set_emit_on_ready(bool p_enabled) { emit_on_ready = p_enabled; }
-bool PhononEmitter2D::get_emit_on_ready() const { return emit_on_ready; }
+void PhononEmitter2D::set_autoplay(bool p_enabled) { autoplay = p_enabled; }
+bool PhononEmitter2D::get_autoplay() const { return autoplay; }

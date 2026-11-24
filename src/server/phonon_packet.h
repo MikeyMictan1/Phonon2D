@@ -15,7 +15,7 @@ struct PhononPacket {
     int bounce_count = 0;
     bool active = false;
 
-    // Per-emission data: identical for every packet of one emit_phonons() call, copied in at spawn and never changed.
+    // Per-emission data: identical for every packet of one emitter play() call, copied in at spawn and never changed.
     // Kept on the packet for simplicity. See performance.md (emission table) for moving it out if the tick loop needs to be leaner.
     uint32_t emission_id = 0;    // which sound this belongs to ("sound #42"), so receivers can group hits. 0 = none
     float share = 0.0f;          // 1 / packet_count: the part of the wavefront this packet stands for. A hit delivers energy * share
