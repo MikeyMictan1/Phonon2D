@@ -41,7 +41,7 @@ public:
 	bool is_profiling_enabled() const;
 
 	// Emitter API -----------------------------------------------------------------------
-	// Everything shared by every packet of one emit_phonons() call
+	// Everything shared by every packet of one emitter play() call
 	struct EmissionInfo {
 		uint32_t id = 0;     // from new_emission_id()
 		float loudness = 0.0f;  // the emitter's loudness: each packet's starting energy

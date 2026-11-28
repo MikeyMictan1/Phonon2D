@@ -26,8 +26,8 @@ public:
 	void _draw() override;
 
 	// Called by the server -----------------------------------------------------------------------
-	// A packet entered this receiver's circle this tick
-	void add_hit(const PhononHit &p_hit);
+	// A packet entered this receiver's circle this tick. Virtual so the listener can also tally it per emission
+	virtual void add_hit(const PhononHit &p_hit);
 
 	// After every packet has been dispatched for this tick. Base version drops hits older than the window.
 	// Subclasses override it and call PhononReceiver::end_tick(p_now) first.

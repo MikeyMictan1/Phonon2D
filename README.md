@@ -26,7 +26,7 @@ Phonon2D provides developers with an open-source toolset for integrating complex
 ## Library Structure
 `Phonon Packet`: Object that acts as the sound bouncing around.
 
-`PhononEmitter2D`: Inherits from AudioStreamPlayer2D, is what ‘makes’ the phonons at a point, whenever the sound is triggered. Can customise volume, direction, etc.
+`PhononEmitter2D`: a Node2D that ‘makes’ the phonons at a point. Set its `stream` and call `play()` (like an AudioStreamPlayer2D), but it makes no sound itself: the `PhononListener2D` plays the stream when the phonons reach it.
 
 `PhononListener2D`: Only one in the scene, is how the audio is processed + how loud it will actually sound.
 

@@ -220,6 +220,7 @@ void PhononServer::detect_receivers(const PhononPacket &p_packet, const StepStar
 		hit.bounces = p_start.bounce_count;
 		hit.emission_id = p_packet.emission_id;
 		hit.tag = p_packet.tag;
+	hit.source = p_packet.source;
 		circle.receiver->add_hit(hit);
 	}
 }
