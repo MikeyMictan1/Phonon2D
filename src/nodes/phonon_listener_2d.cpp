@@ -25,6 +25,10 @@ void PhononListener2D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_max_voices", "count"), &PhononListener2D::set_max_voices);
 	ClassDB::bind_method(D_METHOD("get_max_voices"), &PhononListener2D::get_max_voices);
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "max_voices", PROPERTY_HINT_RANGE, "1,256,1"), "set_max_voices", "get_max_voices");
+
+	ClassDB::bind_method(D_METHOD("set_panning_strength", "strength"), &PhononListener2D::set_panning_strength);
+	ClassDB::bind_method(D_METHOD("get_panning_strength"), &PhononListener2D::get_panning_strength);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "panning_strength", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_panning_strength", "get_panning_strength");
 }
 
 // ---- Lifecycle ----
@@ -55,6 +59,13 @@ void PhononListener2D::_ready() {
 	if (Engine::get_singleton()->is_editor_hint()) {
 		return; // nothing plays in the editor
 	}
+	// Our own AudioListener2D, so panning is relative to this node rather than the camera.
+	// Only the active listener takes it (it then also becomes what ordinary AudioStreamPlayer2Ds are heard from).
+	audio_listener = memnew(AudioListener2D);
+	add_child(audio_listener, false, INTERNAL_MODE_BACK);
+	if (active == this) {
+		audio_listener->make_current();
+	}
 	rebuild_voices();
 }
 
@@ -64,13 +75,15 @@ void PhononListener2D::_ready() {
 void PhononListener2D::add_hit(const PhononHit &p_hit) {
 	PhononReceiver::add_hit(p_hit);
 
-	for (Arrival &arrival : arrivals) { // a handful of emissions per tick at most: linear search is fine
+	// If the hit is from an arrival we already have, then just increase its energy and direction sum
+	for (Arrival &arrival : arrivals) {
 		if (arrival.emission_id == p_hit.emission_id) {
 			arrival.energy += p_hit.energy;
+			arrival.direction_sum += p_hit.direction * p_hit.energy;
 			return;
 		}
 	}
-	arrivals.push_back({ p_hit.emission_id, p_hit.source, p_hit.energy });
+	arrivals.push_back({ p_hit.emission_id, p_hit.source, p_hit.energy, p_hit.direction * p_hit.energy });
 }
 
 void PhononListener2D::end_tick(float p_now) {
@@ -88,6 +101,7 @@ void PhononListener2D::end_tick(float p_now) {
 		}
 	}
 
+	// For all arrivals, add their metrics to their specific voice
 	for (const Arrival &arrival : arrivals) {
 		Voice *voice = find_voice(arrival.emission_id);
 		bool start = false;
@@ -104,17 +118,29 @@ void PhononListener2D::end_tick(float p_now) {
 			voice = claim_voice();
 			voice->emission_id = arrival.emission_id;
 			voice->energy = 0.0f;
+			voice->direction_sum = Vector2();
 			voice->player->set_stream(stream);
 			start = true;
 		}
 
 		voice->energy += arrival.energy;
+		voice->direction_sum += arrival.direction_sum;
 		voice->player->set_volume_db(energy_to_db(voice->energy)); // set before play() so the first frame isn't at the old volume
 		if (start) {
+			place_voice(*voice, get_viewport_rect().size.x); // position too, so it doesn't start panned from wherever it last was
 			voice->player->play();
 		}
 	}
 	arrivals.clear();
+
+	// Re-place every playing voice: new hits shift its direction, and the listener itself may have moved.
+	// Godot pans by horizontal offset / screen width, so one screen width away gives full pan for a sound straight left/right.
+	const float offset = get_viewport_rect().size.x;
+	for (Voice &voice : voices) {
+		if (voice.emission_id != 0) {
+			place_voice(voice, offset);
+		}
+	}
 }
 
 // ---- Queries ----
@@ -139,7 +165,10 @@ void PhononListener2D::rebuild_voices() {
 	}
 	voices.assign(static_cast<std::size_t>(max_voices), Voice());
 	for (Voice &voice : voices) {
-		voice.player = memnew(AudioStreamPlayer);
+		voice.player = memnew(AudioStreamPlayer2D);
+		voice.player->set_attenuation(0.0f);       // no distance fade: volume comes from phonon energy, not from where we place it
+		voice.player->set_max_distance(1.0e7f);    // never out of range (it's placed one screen width away)
+		voice.player->set_panning_strength(panning_strength);
 		add_child(voice.player, false, INTERNAL_MODE_BACK); // internal: hidden from the scene dock and never saved
 	}
 }
@@ -151,6 +180,18 @@ void PhononListener2D::stop_all_voices() {
 			release_voice(voice);
 		}
 	}
+}
+
+// Puts the player p_offset away from the listener on the side the sound arrives from.
+// No direction yet (zero sum, e.g. hits from opposite sides cancelled): centre it on the listener.
+void PhononListener2D::place_voice(Voice &p_voice, float p_offset) {
+	const Vector2 centre = get_global_position();
+	if (p_voice.direction_sum.length_squared() <= 0.0f) {
+		p_voice.player->set_global_position(centre);
+		return;
+	}
+	const Vector2 from = -p_voice.direction_sum.normalized(); // packets travel towards us, so the sound is behind them
+	p_voice.player->set_global_position(centre + from * p_offset);
 }
 
 PhononListener2D::Voice *PhononListener2D::find_voice(uint32_t p_emission_id) {
@@ -183,6 +224,7 @@ void PhononListener2D::release_voice(Voice &p_voice) {
 	finished_next = (finished_next + 1) % finished_ids.size();
 	p_voice.emission_id = 0;
 	p_voice.energy = 0.0f;
+	p_voice.direction_sum = Vector2();
 }
 
 bool PhononListener2D::is_finished(uint32_t p_emission_id) const {
@@ -232,3 +274,11 @@ void PhononListener2D::set_max_voices(int p_count) {
 	}
 }
 int PhononListener2D::get_max_voices() const { return max_voices; }
+
+void PhononListener2D::set_panning_strength(float p_strength) {
+	panning_strength = CLAMP(p_strength, 0.0f, 1.0f);
+	for (Voice &voice : voices) {
+		voice.player->set_panning_strength(panning_strength);
+	}
+}
+float PhononListener2D::get_panning_strength() const { return panning_strength; }
